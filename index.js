@@ -39,6 +39,7 @@ app.use('/admin', adminRoutes);
 app.use('/', paymentRoutes);
 app.use('/verify', verificationRoutes);
 app.use('/paypal', paypalRoutes)
+app.get('/', (req,res) => res.redirect('/docs'))
 app.get('/docs', (req, res) => {
   res.render('docs');
 });
