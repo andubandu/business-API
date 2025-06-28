@@ -30,9 +30,7 @@ const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/payments');
 const verificationRoutes = require('./routes/verification');
 const paypalRoutes = require('./routes/paypal')
-app.get('/', (req, res) => {
-  res.redirect('/docs');
-});
+
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/services', serviceRoutes);
