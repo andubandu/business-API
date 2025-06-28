@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Buy Service - <%= service.title %></title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://www.paypal.com/sdk/js?client-id=<%= paypal_client_id %>&currency=<%= service.currency %>"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Buy Service</h1>
+        
+        <div class="service-details">
+            <h2><%= service.title %></h2>
+            <p><%= service.description %></p>
+            <p><strong>Price: <%= service.price %> <%= service.currency %></strong></p>
+            <p><strong>Developer: <%= service.owner.real_name %> (@<%= service.owner.username %>)</strong></p>
+        </div>
+        
+        <div class="payment-section">
+            <h3>Payment</h3>
+            <div id="paypal-button-container"></div>
+        </div>
+    </div>
+
+    <script>
+        paypal.Buttons({
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: '<%= service.price %>',
+                            currency_code: '<%= service.currency %>'
+                        }
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+                    fetch('/payment/success', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        },
+                        body: JSON.stringify({
+                            serviceID: '<%= service._id %>',
+                            paymentID: data.orderID,
+                            amount: '<%= service.price %>',
+                            currency: '<%= service.currency %>'
+                        })
+                    }).then(response => response.json())
+                    .then(data => {
+                        alert('Payment successful!');
+                        window.location.href = '/services';
+                    });
+                });
+            }
+        }).render('#paypal-button-container');
+    </script>
+</body>
+</html>

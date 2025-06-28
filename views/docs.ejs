@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Documentation</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Developer Marketplace API Documentation</h1>
+        <div class="warning">
+            <h1>I am adding google auth soon! it is not available currently!</h1>
+        </div>
+        <div class="section">
+            <h2>Authentication Routes</h2>
+            <div class="route">
+                <h3>POST /auth/signup</h3>
+                <p>Create new user account</p>
+                <p><strong>Body:</strong> real_name, username, email, password</p>
+            </div>
+            <div class="route">
+                <h3>POST /auth/login</h3>
+                <p>Login with email and password</p>
+                <p><strong>Body:</strong> email, password</p>
+            </div>
+            <div class="route">
+                <h3>GET /auth/github</h3>
+                <p>Login with GitHub OAuth</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>User Routes</h2>
+            <div class="route">
+                <h3>GET /@{username}</h3>
+                <p>Get user profile by username</p>
+            </div>
+            <div class="route">
+                <h3>POST /users/upd</h3>
+                <p>Update own user profile</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> real_name, username, email, profile_image (file)</p>
+            </div>
+            <div class="route">
+                <h3>POST /users/del</h3>
+                <p>Delete own user account</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Service Routes</h2>
+            <div class="route">
+                <h3>POST /services/new</h3>
+                <p>Create new service</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> title, description, price, category, tags</p>
+            </div>
+            <div class="route">
+                <h3>GET /services</h3>
+                <p>List all services</p>
+            </div>
+            <div class="route">
+                <h3>GET /services/:id</h3>
+                <p>Get service by ID</p>
+            </div>
+            <div class="route">
+                <h3>DELETE /services/del/:id</h3>
+                <p>Delete service by ID</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            </div>
+            <div class="route">
+                <h3>POST /services/upd/:id</h3>
+                <p>Update service by ID</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> title, description, price, category, tags</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Admin Routes</h2>
+            <div class="route">
+                <h3>GET /admin/verifications</h3>
+                <p>List pending role upgrade requests</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Note:</strong> Admin access required</p>
+            </div>
+            <div class="route">
+                <h3>POST /admin/approve/:userID</h3>
+                <p>Approve verification request</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            </div>
+            <div class="route">
+                <h3>POST /admin/reject/:userID</h3>
+                <p>Reject verification request</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Payment Routes</h2>
+            <div class="route">
+                <h3>GET /buy/:serviceID</h3>
+                <p>Payment page for service</p>
+            </div>
+            <div class="route">
+                <h3>POST /payment/success</h3>
+                <p>Process successful payment</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> serviceID, paymentID, amount</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Other Routes</h2>
+            <div class="route">
+                <h3>GET /verify</h3>
+                <p>Role verification form</p>
+            </div>
+            <div class="route">
+                <h3>GET /docs</h3>
+                <p>This documentation page</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
