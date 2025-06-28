@@ -7,9 +7,7 @@
 <body>
     <div class="container">
         <h1>Developer Marketplace API Documentation</h1>
-        <div class="warning">
-            <h1>I am adding google auth soon! it is not available currently!</h1>
-        </div>
+
         <div class="section">
             <h2>Authentication Routes</h2>
             <div class="route">
@@ -24,19 +22,19 @@
             </div>
             <div class="route">
                 <h3>GET /auth/github</h3>
-                <p>Login with GitHub OAuth</p>
+                <p>Login with GitHub OAuth - when cloning this repo, make sure you set client url, as this will redirect you to client url/sign-in?token=...</p>
             </div>
         </div>
 
         <div class="section">
             <h2>User Routes</h2>
             <div class="route">
-                <h3>GET /@{username}</h3>
+                <h3>GET /users/:username</h3>
                 <p>Get user profile by username</p>
             </div>
             <div class="route">
                 <h3>POST /users/upd</h3>
-                <p>Update own user profile</p>
+                <p>Update own user profile, atleast one field must be deleted</p>
                 <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
                 <p><strong>Body:</strong> real_name, username, email, profile_image (file)</p>
             </div>
@@ -48,10 +46,36 @@
         </div>
 
         <div class="section">
+            <h2>PayPal Routes</h2>
+            <div class="route">
+                <h3>POST /connect</h3>
+                <p>Connect a PayPal account (only for approved developers)</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> paypal_email, merchant_id</p>
+            </div>
+            <div class="route">
+                <h3>GET /status</h3>
+                <p>Check PayPal connection status</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            </div>
+            <div class="route">
+                <h3>POST /update</h3>
+                <p>Update PayPal email or merchant ID</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> paypal_email, merchant_id</p>
+            </div>
+            <div class="route">
+                <h3>POST /disconnect</h3>
+                <p>Disconnect your PayPal account</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            </div>
+        </div>
+
+        <div class="section">
             <h2>Service Routes</h2>
             <div class="route">
                 <h3>POST /services/new</h3>
-                <p>Create new service</p>
+                <p>Create new service - You can't create service if your verification form isn't approved!! p.s. you MUST have your paypal account connected at all times in order for you to do so!</p>
                 <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
                 <p><strong>Body:</strong> title, description, price, category, tags</p>
             </div>
@@ -113,14 +137,18 @@
         <div class="section">
             <h2>Other Routes</h2>
             <div class="route">
-                <h3>GET /verify</h3>
-                <p>Role verification form</p>
+                <h3>POST /verify</h3>
+                <p>Submit a verification check so admins can approve your role</p>
+                <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+                <p><strong>Body:</strong> requested_role, github_profile (optional), portfolio_url (optional), experience_description, technical_answers[], email (optional)</p>
+                <p><strong>Files:</strong> certifications[] (up to 5)</p>
             </div>
             <div class="route">
                 <h3>GET /docs</h3>
                 <p>This documentation page</p>
             </div>
         </div>
+
     </div>
 </body>
 </html>
