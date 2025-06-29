@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { validate, validateParams, schemas } = require('../middleware/validation');
 const { processPayoutToSeller } = require('../utils/paypal');
+const { notifyServicePurchase, notifyPayoutSent, notifyPayoutFailed } = require('../utils/notifications');
 const Service = require('../models/Service');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
@@ -14,7 +15,7 @@ function roundToTwoDecimals(amount) {
 
 router.get('/buy/:serviceID', validateParams(schemas.buyServiceParams), async (req, res) => {
   try {
-    const service = await Service.findById(req.params.serviceID).populate('owner', 'username real_name paypal_account profile_image');
+    const service = await Service.findById(req.params.serviceID).populate('owner', 'username real_name paypal_account');
     if (!service) {
       return res.status(404).json({ error: 'Service not found' });
     }
@@ -29,10 +30,8 @@ router.get('/buy/:serviceID', validateParams(schemas.buyServiceParams), async (r
     res.render('buy', { 
       service: service.toObject(),
       paypal_client_id: process.env.PAYPAL_CLIENT_ID,
-      platform_email: process.env.PAYPAL_PLATFORM_EMAIL
+      platform_email: process.env.PAYPAL_PLATFORM_EMAIL || 'hilariousaction@gmail.com'
     });
-    console.log(JSON.stringify(service.owner, null, 2));
-
   } catch (error) {
     console.error('Buy page error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -70,6 +69,8 @@ router.post('/payment/success', authMiddleware, validate(schemas.paymentSuccess)
 
     await transaction.save();
 
+    await notifyServicePurchase(service.owner._id, req.user._id, service, transaction);
+
     try {
       const payoutResult = await processPayoutToSeller(
         service.owner.paypal_account.email,
@@ -84,6 +85,7 @@ router.post('/payment/success', authMiddleware, validate(schemas.paymentSuccess)
         payout_status: 'sent',
         payout_sent_at: new Date()
       });
+      await notifyPayoutSent(service.owner._id, transaction, payoutResult.batch_id);
 
       res.json({ 
         message: 'Payment successful and payout sent to developer',
@@ -99,6 +101,7 @@ router.post('/payment/success', authMiddleware, validate(schemas.paymentSuccess)
         payout_status: 'failed',
         payout_error: payoutError.message
       });
+      await notifyPayoutFailed(service.owner._id, transaction, payoutError.message);
 
       res.json({ 
         message: 'Payment successful but payout failed - will be processed manually',

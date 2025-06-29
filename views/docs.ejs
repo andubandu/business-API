@@ -10,7 +10,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background-color: white;
             padding: 30px;
@@ -106,6 +106,64 @@
         li {
             margin-bottom: 5px;
         }
+
+        .new-feature {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .new-feature h4 {
+            margin: 0 0 10px 0;
+            color: #0c5460;
+        }
+
+        .socket-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .socket-section h4 {
+            margin: 0 0 15px 0;
+            color: white;
+        }
+
+        .socket-event {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .embed-example {
+            background: #f8f9fa;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .embed-example h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -116,6 +174,82 @@
             <strong>Note:</strong> Google OAuth integration coming soon. Currently supporting GitHub OAuth and email/password.
         </div>
 
+        <div class="new-feature">
+            <h4>🚀 Real-time Inbox with Socket.io</h4>
+            <p>Complete real-time notification system with embeddable widget:</p>
+            <ul>
+                <li><strong>Real-time notifications</strong> - Instant delivery via Socket.io</li>
+                <li><strong>Embeddable widget</strong> - Perfect for iframe integration</li>
+                <li><strong>Live unread counts</strong> - Updates without page refresh</li>
+                <li><strong>Sound notifications</strong> - Subtle audio alerts</li>
+                <li><strong>Connection status</strong> - Visual connection indicator</li>
+            </ul>
+        </div>
+
+        <div class="embed-example">
+            <h4>📦 Embeddable Inbox Widget</h4>
+            <p>Embed the inbox as a dropdown widget in any website:</p>
+            <div class="code-block">
+&lt;iframe 
+    src="https://business-api-nine.vercel.app/inbox?token=..." 
+    width="400" 
+    height="500"
+    frameborder="0"
+    style="border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"&gt;
+&lt;/iframe&gt;
+            </div>
+            <p><strong>Features:</strong></p>
+            <ul>
+                <li>Compact 400x500px dropdown design</li>
+                <li>Real-time notifications via Socket.io</li>
+                <li>Cross-origin token support</li>
+                <li>Mobile-responsive design</li>
+                <li>Auto-refresh every 60 seconds</li>
+            </ul>
+        </div>
+
+        <div class="socket-section">
+            <h4>⚡ Socket.io Real-time Events</h4>
+            <p><strong>Connection:</strong> Authenticate with JWT token</p>
+            <div class="code-block">
+const socket = io({
+  auth: {
+    token: 'your-jwt-token'
+  }
+});
+            </div>
+
+            <div class="socket-event">
+                <strong>📨 new_notification</strong><br>
+                Emitted when user receives a new notification<br>
+                <code>socket.on('new_notification', (notification) => { ... })</code>
+            </div>
+
+            <div class="socket-event">
+                <strong>🔢 unread_count_updated</strong><br>
+                Emitted when unread count changes<br>
+                <code>socket.on('unread_count_updated', (count) => { ... })</code>
+            </div>
+
+            <div class="socket-event">
+                <strong>✅ mark_notification_read</strong><br>
+                Mark notification as read<br>
+                <code>socket.emit('mark_notification_read', notificationId)</code>
+            </div>
+
+            <div class="socket-event">
+                <strong>🗑️ delete_notification</strong><br>
+                Delete notification<br>
+                <code>socket.emit('delete_notification', notificationId)</code>
+            </div>
+
+            <div class="socket-event">
+                <strong>🗑️ notification_deleted</strong><br>
+                Emitted when notification is deleted<br>
+                <code>socket.on('notification_deleted', (notificationId) => { ... })</code>
+            </div>
+        </div>
+
         <div class="payment-info">
             <h4>PayPal Payment System</h4>
             <p><strong>Automatic Payment Split:</strong></p>
@@ -123,6 +257,7 @@
                 <li><strong>60%</strong> goes to the developer</li>
                 <li><strong>40%</strong> platform fee</li>
                 <li><strong>Automatic</strong> - no manual transfers</li>
+                <li><strong>Instant notifications</strong> - sellers know immediately when someone buys</li>
             </ul>
         </div>
 
@@ -145,9 +280,40 @@
         </div>
 
         <div class="section">
+            <h2>Notification Routes</h2>
+            <div class="route">
+                <h3><span class="endpoint method-get">GET</span> /notifications</h3>
+                <p>Get user's notifications (paginated)</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+                <p><strong>Query:</strong> <code>page, limit</code></p>
+                <p><strong>Response:</strong> notifications, unreadCount, totalCount, pagination info</p>
+            </div>
+            <div class="route">
+                <h3><span class="endpoint method-post">POST</span> /notifications/read/{id}</h3>
+                <p>Mark specific notification as read</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+            </div>
+            <div class="route">
+                <h3><span class="endpoint method-post">POST</span> /notifications/read-all</h3>
+                <p>Mark all notifications as read</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+            </div>
+            <div class="route">
+                <h3><span class="endpoint method-delete">DELETE</span> /notifications/{id}</h3>
+                <p>Delete notification</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+            </div>
+            <div class="route">
+                <h3><span class="endpoint method-get">GET</span> /notifications/unread-count</h3>
+                <p>Get unread notification count only</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+            </div>
+        </div>
+
+        <div class="section">
             <h2>User Routes</h2>
             <div class="route">
-                <h3><span class="endpoint method-get">GET</span> /users/{username}</h3>
+                <h3><span class="endpoint method-get">GET</span> /users/@{username}</h3>
                 <p>Get user profile by username</p>
             </div>
             <div class="route">
@@ -163,41 +329,20 @@
             </div>
         </div>
 
-<div class="section">
-  <h2>PayPal Routes</h2>
-
-  <div class="route">
-    <h3><span class="endpoint method-post">POST</span> /paypal/connect</h3>
-    <p>Connect PayPal account</p>
-    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-    <p><strong>Body:</strong> <code>paypal_email, merchant_id</code></p>
-    <p><strong>Note:</strong> Only users with <code>verification_status</code> set to <code>approved</code> can connect their PayPal account.</p>
-    <p><strong>Response:</strong> Confirmation message with PayPal details</p>
-  </div>
-
-  <div class="route">
-    <h3><span class="endpoint method-get">GET</span> /paypal/status</h3>
-    <p>Check PayPal connection status</p>
-    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-    <p><strong>Response:</strong> Current connection status and PayPal account details</p>
-  </div>
-
-  <div class="route">
-    <h3><span class="endpoint method-post">POST</span> /paypal/update</h3>
-    <p>Update PayPal account details</p>
-    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-    <p><strong>Body:</strong> <code>paypal_email, merchant_id</code></p>
-    <p><strong>Response:</strong> Confirmation message with updated PayPal details</p>
-  </div>
-
-  <div class="route">
-    <h3><span class="endpoint method-post">POST</span> /paypal/disconnect</h3>
-    <p>Disconnect PayPal account</p>
-    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-    <p><strong>Response:</strong> Confirmation message on successful disconnection</p>
-  </div>
-</div>
-
+        <div class="section">
+            <h2>PayPal Routes</h2>
+            <div class="route">
+                <h3><span class="endpoint method-post">POST</span> /paypal/connect</h3>
+                <p>Connect PayPal account</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+                <p><strong>Body:</strong> <code>paypal_email, merchant_id</code></p>
+            </div>
+            <div class="route">
+                <h3><span class="endpoint method-get">GET</span> /paypal/status</h3>
+                <p>Check PayPal connection status</p>
+                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+            </div>
+        </div>
 
         <div class="section">
             <h2>Service Routes</h2>
@@ -239,12 +384,12 @@
             </div>
             <div class="route">
                 <h3><span class="endpoint method-post">POST</span> /admin/approve/{userID}</h3>
-                <p>Approve verification</p>
+                <p>Approve verification (sends real-time notification)</p>
                 <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
             </div>
             <div class="route">
                 <h3><span class="endpoint method-post">POST</span> /admin/reject/{userID}</h3>
-                <p>Reject verification</p>
+                <p>Reject verification (sends real-time notification)</p>
                 <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
             </div>
         </div>
@@ -263,47 +408,30 @@
             </div>
             <div class="route">
                 <h3><span class="endpoint method-post">POST</span> /payment/success</h3>
-                <p>Process successful payment</p>
+                <p>Process successful payment (sends real-time notifications)</p>
                 <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
                 <p><strong>Body:</strong> <code>serviceID, paymentID, amount, currency, paypal_order_id</code></p>
+                <p><strong>Real-time notifications sent:</strong></p>
+                <ul>
+                    <li>Purchase notification to seller (via Socket.io)</li>
+                    <li>Payout confirmation (success/failure)</li>
+                    <li>Live unread count updates</li>
+                </ul>
             </div>
         </div>
 
-       <div class="section">
-  <h2>Verification Routes</h2>
-  <div class="route">
-    <h3><span class="endpoint method-post">POST</span> /verify</h3>
-    <p>Submit a verification request for a user role upgrade.</p>
-    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-    <p><strong>Content-Type:</strong> <code>multipart/form-data</code> (for uploading up to 5 certification files)</p>
-    <p><strong>Body Parameters:</strong></p>
-    <ul>
-      <li><code>requested_role</code> (string, required) – The role the user wants to verify for. <em>Note:</em> Roles <code>client</code> and <code>vibecoder</code> are forbidden.</li>
-      <li><code>github_profile</code> (string, optional) – URL of the user's GitHub profile.</li>
-      <li><code>portfolio_url</code> (string, optional) – URL of the user’s portfolio website.</li>
-      <li><code>experience_description</code> (string, optional) – Brief description of user’s relevant experience (minimum 50 characters recommended).</li>
-      <li><code>technical_answers</code> (array|string, optional) – Answers to technical questions relevant to the requested role.</li>
-      <li><code>certifications</code> (file[], optional) – Up to 5 certification files uploaded for verification.</li>
-    </ul>
-    <p><strong>Validation and Processing:</strong></p>
-    <ul>
-      <li>Rejects requests with <code>requested_role</code> as <code>client</code> or <code>vibecoder</code>.</li>
-      <li>Analyzes GitHub profile if provided, checking activity score and public repositories count.</li>
-      <li>Validates accessibility of portfolio URL if provided.</li>
-      <li>Checks if experience description meets length recommendation.</li>
-      <li>Uploads certification files to cloud storage and stores URLs.</li>
-      <li>Stores all verification data and flags for manual review.</li>
-    </ul>
-    <p><strong>Response (200 OK):</strong></p>
-    <pre><code>{
-  "message": "Verification request submitted successfully",
-  "validation_flags": ["Low GitHub activity", "Portfolio URL not accessible", "..."]
-}</code></pre>
-    <p><strong>Response (403 Forbidden):</strong> If requested role is forbidden.</p>
-    <p><strong>Response (500 Internal Server Error):</strong> On unexpected server error.</p>
-  </div>
-</div>
-
+        <div class="section">
+            <h2>Verification Routes</h2>
+            <div class="route">
+                <h3><span class="endpoint method-get">GET</span> /verify?token={jwt}</h3>
+                <p>Verification form page (requires token parameter)</p>
+            </div>
+            <div class="route">
+                <h3><span class="endpoint method-post">POST</span> /verify</h3>
+                <p>Submit verification request</p>
+                <p><strong>Body:</strong> <code>token, requested_role, github_profile, portfolio_url, experience_description, technical_answers</code></p>
+            </div>
+        </div>
 
         <div class="section">
             <h2>Other Routes</h2>
@@ -311,7 +439,21 @@
                 <h3><span class="endpoint method-get">GET</span> /docs</h3>
                 <p>This documentation page</p>
             </div>
+            <div class="route">
+                <h3><span class="endpoint method-get">GET</span> /inbox</h3>
+                <p>Embeddable inbox widget (perfect for iframes)</p>
+                <p><strong>Notes:</strong>MUST have a token query param in order for this to work</p>
+                <p><strong>Features:</strong></p>
+                <ul>
+                    <li>Real-time Socket.io notifications</li>
+                    <li>Compact dropdown design (400x500px)</li>
+                    <li>Cross-origin token support</li>
+                    <li>Auto-refresh and connection status</li>
+                    <li>Sound notifications for new messages</li>
+                </ul>
+            </div>
         </div>
+
     </div>
 </body>
 </html>
