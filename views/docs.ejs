@@ -163,20 +163,41 @@
             </div>
         </div>
 
-        <div class="section">
-            <h2>PayPal Routes</h2>
-            <div class="route">
-                <h3><span class="endpoint method-post">POST</span> /paypal/connect</h3>
-                <p>Connect PayPal account</p>
-                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-                <p><strong>Body:</strong> <code>paypal_email, merchant_id</code></p>
-            </div>
-            <div class="route">
-                <h3><span class="endpoint method-get">GET</span> /paypal/status</h3>
-                <p>Check PayPal connection status</p>
-                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-            </div>
-        </div>
+<div class="section">
+  <h2>PayPal Routes</h2>
+
+  <div class="route">
+    <h3><span class="endpoint method-post">POST</span> /paypal/connect</h3>
+    <p>Connect PayPal account</p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+    <p><strong>Body:</strong> <code>paypal_email, merchant_id</code></p>
+    <p><strong>Note:</strong> Only users with <code>verification_status</code> set to <code>approved</code> can connect their PayPal account.</p>
+    <p><strong>Response:</strong> Confirmation message with PayPal details</p>
+  </div>
+
+  <div class="route">
+    <h3><span class="endpoint method-get">GET</span> /paypal/status</h3>
+    <p>Check PayPal connection status</p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+    <p><strong>Response:</strong> Current connection status and PayPal account details</p>
+  </div>
+
+  <div class="route">
+    <h3><span class="endpoint method-post">POST</span> /paypal/update</h3>
+    <p>Update PayPal account details</p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+    <p><strong>Body:</strong> <code>paypal_email, merchant_id</code></p>
+    <p><strong>Response:</strong> Confirmation message with updated PayPal details</p>
+  </div>
+
+  <div class="route">
+    <h3><span class="endpoint method-post">POST</span> /paypal/disconnect</h3>
+    <p>Disconnect PayPal account</p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+    <p><strong>Response:</strong> Confirmation message on successful disconnection</p>
+  </div>
+</div>
+
 
         <div class="section">
             <h2>Service Routes</h2>
