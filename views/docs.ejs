@@ -248,15 +248,41 @@
             </div>
         </div>
 
-        <div class="section">
-            <h2>Verification Routes</h2>
-            <div class="route">
-                <h3><span class="endpoint method-post">POST</span> /verify</h3>
-                <p>Submit verification request</p>
-                <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
-                <p><strong>Body:</strong> <code>requested_role, github_profile, portfolio_url, experience_description, technical_answers</code></p>
-            </div>
-        </div>
+       <div class="section">
+  <h2>Verification Routes</h2>
+  <div class="route">
+    <h3><span class="endpoint method-post">POST</span> /verify</h3>
+    <p>Submit a verification request for a user role upgrade.</p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer {token}</code></p>
+    <p><strong>Content-Type:</strong> <code>multipart/form-data</code> (for uploading up to 5 certification files)</p>
+    <p><strong>Body Parameters:</strong></p>
+    <ul>
+      <li><code>requested_role</code> (string, required) – The role the user wants to verify for. <em>Note:</em> Roles <code>client</code> and <code>vibecoder</code> are forbidden.</li>
+      <li><code>github_profile</code> (string, optional) – URL of the user's GitHub profile.</li>
+      <li><code>portfolio_url</code> (string, optional) – URL of the user’s portfolio website.</li>
+      <li><code>experience_description</code> (string, optional) – Brief description of user’s relevant experience (minimum 50 characters recommended).</li>
+      <li><code>technical_answers</code> (array|string, optional) – Answers to technical questions relevant to the requested role.</li>
+      <li><code>certifications</code> (file[], optional) – Up to 5 certification files uploaded for verification.</li>
+    </ul>
+    <p><strong>Validation and Processing:</strong></p>
+    <ul>
+      <li>Rejects requests with <code>requested_role</code> as <code>client</code> or <code>vibecoder</code>.</li>
+      <li>Analyzes GitHub profile if provided, checking activity score and public repositories count.</li>
+      <li>Validates accessibility of portfolio URL if provided.</li>
+      <li>Checks if experience description meets length recommendation.</li>
+      <li>Uploads certification files to cloud storage and stores URLs.</li>
+      <li>Stores all verification data and flags for manual review.</li>
+    </ul>
+    <p><strong>Response (200 OK):</strong></p>
+    <pre><code>{
+  "message": "Verification request submitted successfully",
+  "validation_flags": ["Low GitHub activity", "Portfolio URL not accessible", "..."]
+}</code></pre>
+    <p><strong>Response (403 Forbidden):</strong> If requested role is forbidden.</p>
+    <p><strong>Response (500 Internal Server Error):</strong> On unexpected server error.</p>
+  </div>
+</div>
+
 
         <div class="section">
             <h2>Other Routes</h2>
