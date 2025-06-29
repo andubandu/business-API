@@ -18,7 +18,7 @@ router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (
 
     await User.findByIdAndUpdate(req.user._id, {
       'paypal_account.email': paypal_email,
-      'paypal_account.merchant_id': merchant_id,
+      'paypal_account.merchant_id': merchant_id || '',
       'paypal_account.connected': true,
       'paypal_account.connected_at': new Date(),
       'paypal_account.last_verified': new Date()
@@ -26,7 +26,8 @@ router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (
 
     res.json({ 
       message: 'PayPal account connected successfully',
-      paypal_email: paypal_email
+      paypal_email: paypal_email,
+      merchant_id: merchant_id || 'Not provided'
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -40,6 +41,7 @@ router.get('/status', authMiddleware, async (req, res) => {
     res.json({
       connected: user.paypal_account.connected,
       email: user.paypal_account.email,
+      merchant_id: user.paypal_account.merchant_id,
       connected_at: user.paypal_account.connected_at,
       last_verified: user.paypal_account.last_verified
     });
@@ -54,13 +56,14 @@ router.post('/update', authMiddleware, validate(schemas.paypalConnect), async (r
     
     await User.findByIdAndUpdate(req.user._id, {
       'paypal_account.email': paypal_email,
-      'paypal_account.merchant_id': merchant_id,
+      'paypal_account.merchant_id': merchant_id || '',
       'paypal_account.last_verified': new Date()
     });
 
     res.json({ 
       message: 'PayPal account updated successfully',
-      paypal_email: paypal_email
+      paypal_email: paypal_email,
+      merchant_id: merchant_id || 'Not provided'
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });

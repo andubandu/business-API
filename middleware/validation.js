@@ -20,10 +20,12 @@ const allowedRoles = [
   "vibecoder"
 ];
 
+const paypalSupportedCurrencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'];
+
 const schemas = {
   signup: Joi.object({
     real_name: Joi.string().min(2).max(50).required(),
-    username: Joi.string().alphanum().min(3).max(30).required(),
+    username: Joi.string().pattern(/^[a-zA-Z0-9_]+$/).min(3).max(30).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(6).required()
   }),
@@ -35,7 +37,7 @@ const schemas = {
 
   updateUser: Joi.object({
     real_name: Joi.string().min(2).max(50).optional(),
-    username: Joi.string().alphanum().min(3).max(30).optional(),
+    username: Joi.string().pattern(/^[a-zA-Z0-9_]+$/).min(3).max(30).optional(),
     email: Joi.string().email().optional()
   }),
 
@@ -43,7 +45,7 @@ const schemas = {
     title: Joi.string().min(5).max(100).required(),
     description: Joi.string().min(20).max(1000).required(),
     price: Joi.number().positive().required(),
-    currency: Joi.string().valid('USD', 'EUR', 'GEL').default('USD'),
+    currency: Joi.string().valid(...paypalSupportedCurrencies).default('USD'),
     category: Joi.string().max(50).optional(),
     tags: Joi.alternatives().try(
       Joi.array().items(Joi.string().max(30)),
@@ -55,7 +57,7 @@ const schemas = {
     title: Joi.string().min(5).max(100).optional(),
     description: Joi.string().min(20).max(1000).optional(),
     price: Joi.number().positive().optional(),
-    currency: Joi.string().valid('USD', 'EUR', 'GEL').optional(),
+    currency: Joi.string().valid(...paypalSupportedCurrencies).optional(),
     category: Joi.string().max(50).optional(),
     tags: Joi.alternatives().try(
       Joi.array().items(Joi.string().max(30)),
@@ -80,19 +82,25 @@ const schemas = {
     serviceID: Joi.string().hex().length(24).required(),
     paymentID: Joi.string().required(),
     amount: Joi.number().positive().required(),
-    currency: Joi.string().valid('USD', 'EUR', 'GEL').default('USD')
+    currency: Joi.string().valid(...paypalSupportedCurrencies).default('USD'),
+    paypal_order_id: Joi.string().optional()
   }),
 
-  currencyQuery: Joi.object({
-    currency: Joi.string().valid('USD', 'EUR', 'GEL').optional()
+  paypalConnect: Joi.object({
+    paypal_email: Joi.string().email().required(),
+    merchant_id: Joi.string().min(5).max(50).optional()
   }),
 
   serviceParams: Joi.object({
     id: Joi.string().hex().length(24).required()
   }),
 
+  buyServiceParams: Joi.object({
+    serviceID: Joi.string().hex().length(24).required()
+  }),
+
   userParams: Joi.object({
-    username: Joi.string().alphanum().min(3).max(30).required()
+    username: Joi.string().pattern(/^[a-zA-Z0-9_]+$/).min(3).max(30).required()
   }),
 
   adminParams: Joi.object({
@@ -106,19 +114,6 @@ const validate = (schema) => {
     if (error) {
       return res.status(400).json({ 
         error: 'Validation error', 
-        details: error.details.map(detail => detail.message)
-      });
-    }
-    next();
-  };
-};
-
-const validateQuery = (schema) => {
-  return (req, res, next) => {
-    const { error } = schema.validate(req.query);
-    if (error) {
-      return res.status(400).json({ 
-        error: 'Query validation error', 
         details: error.details.map(detail => detail.message)
       });
     }
@@ -142,6 +137,6 @@ const validateParams = (schema) => {
 module.exports = {
   schemas,
   validate,
-  validateQuery,
-  validateParams
+  validateParams,
+  paypalSupportedCurrencies
 };

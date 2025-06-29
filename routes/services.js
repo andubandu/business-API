@@ -1,7 +1,6 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { validate, validateQuery, validateParams, schemas } = require('../middleware/validation');
-const { convertPrice } = require('../utils/currency');
+const { validate, validateParams, schemas } = require('../middleware/validation');
 const Service = require('../models/Service');
 const User = require('../models/User');
 
@@ -43,35 +42,20 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
   }
 });
 
-router.get('/', validateQuery(schemas.currencyQuery), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const { currency } = req.query;
     const services = await Service.find().populate('owner', 'username real_name profile_image');
-    
-    if (currency && currency.toUpperCase() !== 'USD') {
-      for (let service of services) {
-        service.price = await convertPrice(service.price, service.currency, currency.toUpperCase());
-        service.currency = currency.toUpperCase();
-      }
-    }
-    
     res.json(services);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.get('/:id', validateParams(schemas.serviceParams), validateQuery(schemas.currencyQuery), async (req, res) => {
+router.get('/:id', validateParams(schemas.serviceParams), async (req, res) => {
   try {
-    const { currency } = req.query;
     const service = await Service.findById(req.params.id).populate('owner', 'username real_name profile_image');
     if (!service) {
       return res.status(404).json({ error: 'Service not found' });
-    }
-    
-    if (currency && currency.toUpperCase() !== service.currency) {
-      service.price = await convertPrice(service.price, service.currency, currency.toUpperCase());
-      service.currency = currency.toUpperCase();
     }
     
     res.json(service);

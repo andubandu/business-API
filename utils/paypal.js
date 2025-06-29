@@ -24,6 +24,8 @@ async function processPayoutToSeller(sellerEmail, amount, currency, note, transa
   try {
     const accessToken = await getPayPalAccessToken();
     
+    const roundedAmount = Math.round(amount * 100) / 100;
+    
     const payoutData = {
       sender_batch_header: {
         sender_batch_id: `batch_${transactionId}_${Date.now()}`,
@@ -34,7 +36,7 @@ async function processPayoutToSeller(sellerEmail, amount, currency, note, transa
         {
           recipient_type: "EMAIL",
           amount: {
-            value: amount.toFixed(2),
+            value: roundedAmount.toFixed(2),
             currency: currency
           },
           receiver: sellerEmail,
