@@ -276,6 +276,7 @@ const socket = io({
             <div class="route">
                 <h3><span class="endpoint method-get">GET</span> /auth/github</h3>
                 <p>Login with GitHub OAuth</p>
+                <p>Notes: Will redirect to {frontend_url}/sign-in?token=...</p>
             </div>
         </div>
 
@@ -313,7 +314,7 @@ const socket = io({
         <div class="section">
             <h2>User Routes</h2>
             <div class="route">
-                <h3><span class="endpoint method-get">GET</span> /users/@{username}</h3>
+                <h3><span class="endpoint method-get">GET</span> /users/{username}</h3>
                 <p>Get user profile by username</p>
             </div>
             <div class="route">
