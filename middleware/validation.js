@@ -94,7 +94,7 @@ const schemas = {
   serviceParams: Joi.object({
     id: Joi.string().hex().length(24).required()
   }),
-
+  
   buyServiceParams: Joi.object({
     serviceID: Joi.string().hex().length(24).required()
   }),
@@ -105,6 +105,24 @@ const schemas = {
 
   adminParams: Joi.object({
     userID: Joi.string().hex().length(24).required()
+  }),
+
+  createRating: Joi.object({
+    ratedUser: Joi.string().hex().length(24),
+    ratedService: Joi.string().hex().length(24),
+    score: Joi.number().min(1).max(5).required()
+  }).custom((value, helpers) => {
+    const hasUser = !!value.ratedUser;
+    const hasService = !!value.ratedService;
+    if ((hasUser && hasService) || (!hasUser && !hasService)) {
+      return helpers.error('any.invalid', { message: 'Provide either ratedUser or ratedService, not both or neither' });
+    }
+    return value;
+  }),
+
+  ratingParams: Joi.object({
+    userId: Joi.string().hex().length(24),
+    serviceId: Joi.string().hex().length(24)
   })
 };
 

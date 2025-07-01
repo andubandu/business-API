@@ -1,14 +1,22 @@
 const mongoose = require('mongoose');
-const {allowedRoles} = require('../arrays')
+const { allowedRoles } = require('../arrays');
+
 const userSchema = new mongoose.Schema({
   real_name: { type: String, required: true },
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  profile_image: { type: String, default: '' },
+  profile_image: {
+    type: String,
+    default: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR0QXBnLOPzEafGE-keGZ1VnS7yFPOZ9cB73Q&s'
+  },
   role: { type: String, enum: allowedRoles, default: 'client' },
   github_id: String,
-  verification_status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+  verification_status: {
+    type: String,
+    enum: ['none', 'pending', 'approved', 'rejected'],
+    default: 'none'
+  },
   requested_role: String,
   verification_data: {
     github_profile: String,
@@ -32,7 +40,9 @@ const userSchema = new mongoose.Schema({
     connected: { type: Boolean, default: false },
     connected_at: Date,
     last_verified: Date
-  }
+  },
+  averageRating: { type: Number, default: 0 },
+  totalScore: { type: [Number], default: [] }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

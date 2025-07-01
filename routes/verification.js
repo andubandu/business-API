@@ -16,6 +16,11 @@ const upload = multer({
 
 router.post('/verify', authMiddleware, upload.array('certifications', 5), validate(schemas.verification), async (req, res) => {
   try {
+    const user = await User.findById(req.user._id);
+    if (user && user.verification_status === 'approved') {
+      return res.status(400).json({ error: 'Verification already approved' });
+    }
+
     const { 
       requested_role, 
       github_profile, 

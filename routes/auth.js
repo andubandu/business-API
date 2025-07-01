@@ -1,10 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('../config/passport');
 const { validate, schemas } = require('../middleware/validation');
 const User = require('../models/User');
-
+const {authMiddleware} = require('../middleware/auth')
 const router = express.Router();
 
 router.post('/signup', validate(schemas.signup), async (req, res) => {
@@ -68,6 +69,23 @@ router.post('/login', validate(schemas.login), async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select('-password -__v'); 
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error in /me route:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 

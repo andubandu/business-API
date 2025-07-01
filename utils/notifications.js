@@ -2,7 +2,12 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 
 async function createNotification(recipientId, type, title, message, data = {}, senderId = null) {
+  console.log('[Notification] createNotification called:', { recipientId, type, title });
+
   try {
+    if (!recipientId) throw new Error('recipientId is required');
+    if (!type) throw new Error('Notification type is required');
+
     const notification = new Notification({
       recipient: recipientId,
       sender: senderId,
@@ -13,42 +18,56 @@ async function createNotification(recipientId, type, title, message, data = {}, 
     });
 
     await notification.save();
-    
+    console.log('[Notification] Saved notification:', notification._id);
+
+    // Access socket.io instance from global or your main app export
     const io = require('../index').io || global.io;
     if (io) {
       const populatedNotification = await Notification.findById(notification._id)
         .populate('sender', 'username real_name profile_image')
-        .populate('data.serviceId', 'title price currency');
-      
+        .populate('data.serviceId', 'title price currency')
+        .lean();
+
       io.to(`user_${recipientId}`).emit('new_notification', populatedNotification);
-      
-      const unreadCount = await Notification.countDocuments({
-        recipient: recipientId,
-        read: false
-      });
-      
+
+      const unreadCount = await Notification.countDocuments({ recipient: recipientId, read: false });
       io.to(`user_${recipientId}`).emit('unread_count_updated', unreadCount);
+
+      console.log(`[Notification] Emitted events for user ${recipientId}`);
+    } else {
+      console.warn('[Notification] Socket.io instance not found, skipping emit');
     }
-    
+
     return notification;
   } catch (error) {
-    console.error('Error creating notification:', error);
+    console.error('[Notification] Error creating notification:', error);
     return null;
   }
 }
 
+async function notifyVerificationApproved(userId, approvedRole) {
+  const title = `✅ Verification Approved!`;
+  const message = `Congratulations! Your verification request for "${approvedRole}" role has been approved. You can now create and sell services on our platform.`;
+  return createNotification(userId, 'verification_approved', title, message);
+}
+
+async function notifyVerificationRejected(userId, requestedRole) {
+  const title = `❌ Verification Rejected`;
+  const message = `Your verification request for "${requestedRole}" role has been rejected. Please review the requirements and submit a new application with additional proof of work.`;
+  return createNotification(userId, 'verification_rejected', title, message);
+}
+
 async function notifyServicePurchase(sellerId, buyerId, service, transaction) {
   try {
-    const buyer = await User.findById(buyerId).select('real_name username');
-    const buyerName = buyer ? buyer.real_name : 'Anonymous customer';
+    const buyer = await User.findById(buyerId).select('real_name username').lean();
+    const buyerName = buyer?.real_name || 'Anonymous customer';
     const buyerUsername = buyer ? `@${buyer.username}` : '';
-    
+
     const title = `🎉 Service Purchased!`;
     const message = `Your service "${service.title}" was purchased for ${transaction.amountPaid} ${transaction.currency} by ${buyerName} ${buyerUsername}. You will receive ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} (60% after platform fee).`;
-    
+
     return await createNotification(
       sellerId,
-      buyerId,
       'purchase',
       title,
       message,
@@ -57,18 +76,19 @@ async function notifyServicePurchase(sellerId, buyerId, service, transaction) {
         transactionId: transaction._id,
         amount: transaction.developerEarnings,
         currency: transaction.currency,
-        buyerName: buyerName,
-        buyerUsername: buyer ? buyer.username : null
-      }
+        buyerName,
+        buyerUsername: buyer?.username || null
+      },
+      buyerId
     );
   } catch (error) {
-    console.error('Error creating purchase notification:', error);
+    console.error('[Notification] Error notifying service purchase:', error);
+    // Fallback notification without buyer details
     const title = `🎉 Service Purchased!`;
     const message = `Your service "${service.title}" was purchased for ${transaction.amountPaid} ${transaction.currency} by a customer. You will receive ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} (60% after platform fee).`;
-    
-    return await createNotification(
+
+    return createNotification(
       sellerId,
-      buyerId,
       'purchase',
       title,
       message,
@@ -85,10 +105,8 @@ async function notifyServicePurchase(sellerId, buyerId, service, transaction) {
 async function notifyPayoutSent(sellerId, transaction, payoutId) {
   const title = `💰 Payment Sent!`;
   const message = `Your payment of ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} has been sent to your PayPal account. Payout ID: ${payoutId}`;
-  
-  return await createNotification(
+  return createNotification(
     sellerId,
-    null,
     'payout_sent',
     title,
     message,
@@ -96,7 +114,7 @@ async function notifyPayoutSent(sellerId, transaction, payoutId) {
       transactionId: transaction._id,
       amount: transaction.developerEarnings,
       currency: transaction.currency,
-      payoutId: payoutId
+      payoutId
     }
   );
 }
@@ -104,10 +122,8 @@ async function notifyPayoutSent(sellerId, transaction, payoutId) {
 async function notifyPayoutFailed(sellerId, transaction, error) {
   const title = `⚠️ Payment Failed`;
   const message = `Your payment of ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} failed to send. Error: ${error}. Our team will process this manually.`;
-  
-  return await createNotification(
+  return createNotification(
     sellerId,
-    null,
     'payout_failed',
     title,
     message,
@@ -119,36 +135,9 @@ async function notifyPayoutFailed(sellerId, transaction, error) {
   );
 }
 
-async function notifyVerificationApproved(userId, approvedRole) {
-  const title = `✅ Verification Approved!`;
-  const message = `Congratulations! Your verification request for "${approvedRole}" role has been approved. You can now create and sell services on our platform.`;
-  
-  return await createNotification(
-    userId,
-    null,
-    'verification_approved',
-    title,
-    message
-  );
-}
-
-async function notifyVerificationRejected(userId, requestedRole) {
-  const title = `❌ Verification Rejected`;
-  const message = `Your verification request for "${requestedRole}" role has been rejected. Please review the requirements and submit a new application with additional proof of work.`;
-  
-  return await createNotification(
-    userId,
-    null,
-    'verification_rejected',
-    title,
-    message
-  );
-}
-
 async function notifySystemMessage(userId, title, message) {
-  return await createNotification(
+  return createNotification(
     userId,
-    null,
     'system',
     title,
     message
@@ -157,10 +146,10 @@ async function notifySystemMessage(userId, title, message) {
 
 module.exports = {
   createNotification,
+  notifyVerificationApproved,
+  notifyVerificationRejected,
   notifyServicePurchase,
   notifyPayoutSent,
   notifyPayoutFailed,
-  notifyVerificationApproved,
-  notifyVerificationRejected,
   notifySystemMessage
 };

@@ -17,6 +17,7 @@ const io = socketIo(server, {
     methods: ["GET", "POST"]
   }
 });
+app.enable('trust proxy');
 
 app.use(cors());
 app.use(express.json());
@@ -109,7 +110,7 @@ const paymentRoutes = require('./routes/payments');
 const verificationRoutes = require('./routes/verification');
 const paypalRoutes = require('./routes/paypal');
 const notificationRoutes = require('./routes/notifications');
-
+const ratingRoutes = require('./routes/ratings')
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/services', serviceRoutes);
@@ -118,15 +119,18 @@ app.use('/', paymentRoutes);
 app.use('/', verificationRoutes);
 app.use('/paypal', paypalRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/rating', ratingRoutes)
 app.get('/', (req,res) => res.redirect('/docs'))
 app.get('/docs', (req, res) => {
-  res.render('docs');
+  const fullUrl = `${req.protocol}://${req.get('host')}`;
+  res.render('docs', { baseUrl: fullUrl });
 });
+
 
 app.get('/inbox', (req, res) => {
   res.render('inbox');
 });
 
 server.listen(3000, () => {
-  console.log(`Server running on http://localhost:3000`);
+  console.log('Server + Socket.IO running on http://localhost:3000');
 });

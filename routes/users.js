@@ -25,7 +25,7 @@ router.get('/:username', validateParams(schemas.userParams), async (req, res) =>
   }
 });
 
-router.post('/upd', authMiddleware, upload.single('profile_image'), validate(schemas.updateUser), async (req, res) => {
+router.put('/upd', authMiddleware, upload.single('profile_image'), validate(schemas.updateUser), async (req, res) => {
   try {
     const { real_name, username, email } = req.body;
     const updateData = {};
@@ -46,7 +46,7 @@ router.post('/upd', authMiddleware, upload.single('profile_image'), validate(sch
   }
 });
 
-router.post('/del', authMiddleware, async (req, res) => {
+router.delete('/del', authMiddleware, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.user._id);
     res.json({ message: 'User deleted successfully' });
