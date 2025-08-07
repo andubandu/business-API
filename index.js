@@ -111,6 +111,7 @@ const verificationRoutes = require('./routes/verification');
 const paypalRoutes = require('./routes/paypal');
 const notificationRoutes = require('./routes/notifications');
 const ratingRoutes = require('./routes/ratings')
+const feedbackRoutes = require('./routes/feedbacks');
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/services', serviceRoutes);
@@ -121,10 +122,12 @@ app.use('/paypal', paypalRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/rating', ratingRoutes)
 app.get('/', (req,res) => res.redirect('/docs'))
+app.use('/feedback', feedbackRoutes);
 app.get('/docs', (req, res) => {
   const fullUrl = `${req.protocol}://${req.get('host')}`;
   res.render('docs', { baseUrl: fullUrl });
 });
+
 
 
 app.get('/inbox', (req, res) => {

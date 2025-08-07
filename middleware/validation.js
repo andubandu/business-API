@@ -78,6 +78,11 @@ const schemas = {
     ).required()
   }),
 
+  feedback: Joi.object({
+    content: Joi.string().min(10).max(1000).required(),
+    rating: Joi.number().integer().min(1).max(5).required()
+  }),
+
   paymentSuccess: Joi.object({
     serviceID: Joi.string().hex().length(24).required(),
     paymentID: Joi.string().required(),
