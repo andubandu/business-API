@@ -1,3 +1,4 @@
+require('dotenv').config();
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
 const bcrypt = require('bcryptjs');

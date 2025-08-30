@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { validate, validateParams, schemas } = require('../middleware/validation');
