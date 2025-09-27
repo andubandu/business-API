@@ -94,4 +94,15 @@ router.get('/github/callback', passport.authenticate('github', { failureRedirect
   res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
 });
 
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  async (req, res) => {
+    const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+    res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
+  }
+);
+
+
 module.exports = router;

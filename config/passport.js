@@ -29,6 +29,31 @@ callbackURL: process.env.GITHUB_CALLBACK_URL
   }
 }));
 
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    let user = await User.findOne({ google_id: profile.id });
+    if (user) return done(null, user);
+
+    user = new User({
+      real_name: profile.displayName,
+      username: profile.emails[0].value.split('@')[0] + '_google',
+      email: profile.emails[0].value,
+      password: await bcrypt.hash('google_user', 10),
+      google_id: profile.id,
+      profile_image: profile.photos[0]?.value || ''
+    });
+
+    await user.save();
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+}));
+
 passport.serializeUser((user, done) => {
   done(null, user._id);
 });
