@@ -8,22 +8,28 @@ const router = express.Router();
 
 router.post('/new', authMiddleware, validate(schemas.createService), async (req, res) => {
   try {
-    if (req.user.verification_status !== 'approved') {
-      return res.status(403).json({ 
-        error: 'Access denied', 
-        message: 'Only users with approved verification status can create services. Please complete verification or contact support.' 
-      });
+    const { title, description, price, currency = 'USD', category, tags, type } = req.body;
+
+    if (!type || !['request', 'offering'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid type. Must be "request" or "offering"' });
     }
 
-    const user = await User.findById(req.user._id);
-    if (!user.paypal_account.connected) {
-      return res.status(403).json({ 
-        error: 'PayPal account required', 
-        message: 'You must connect a PayPal account before creating services to receive payments.' 
-      });
-    }
+    if (type === 'offering') {
+      if (req.user.verification_status !== 'approved') {
+        return res.status(403).json({
+          error: 'Access denied',
+          message: 'Only users with approved verification status can create offerings. Please complete verification or contact support.'
+        });
+      }
 
-    const { title, description, price, currency = 'USD', category, tags } = req.body;
+      const user = await User.findById(req.user._id);
+      if (!user.paypal_account.connected) {
+        return res.status(403).json({
+          error: 'PayPal account required',
+          message: 'You must connect a PayPal account before creating offerings to receive payments.'
+        });
+      }
+    }
 
     const service = new Service({
       title,
@@ -32,7 +38,8 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
       currency: currency.toUpperCase(),
       owner: req.user._id,
       category,
-      tags: Array.isArray(tags) ? tags : tags ? [tags] : []
+      tags: Array.isArray(tags) ? tags : tags ? [tags] : [],
+      type
     });
 
     await service.save();
@@ -44,7 +51,20 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
 
 router.get('/', async (req, res) => {
   try {
-    const services = await Service.find().populate('owner', 'username real_name profile_image');
+    const { type, promoted } = req.query;
+    const filter = {};
+
+    if (type && ['request', 'offering'].includes(type)) {
+      filter.type = type;
+    }
+
+    if (promoted === 'true') {
+      filter.promoted = true;
+    }
+
+    const services = await Service.find(filter)
+      .populate('owner', 'username real_name profile_image user_type')
+      .sort({ promoted: -1, createdAt: -1 });
     res.json(services);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -93,18 +113,50 @@ router.post('/upd/:id', authMiddleware, validateParams(schemas.serviceParams), v
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    const { title, description, price, currency, category, tags } = req.body;
+    const { title, description, price, currency, category, tags, type } = req.body;
     const updateData = {};
-    
+
     if (title) updateData.title = title;
     if (description) updateData.description = description;
     if (price) updateData.price = parseFloat(price);
     if (currency) updateData.currency = currency.toUpperCase();
     if (category) updateData.category = category;
     if (tags) updateData.tags = Array.isArray(tags) ? tags : [tags];
+    if (type && ['request', 'offering'].includes(type)) updateData.type = type;
 
     const updatedService = await Service.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(updatedService);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/promote/:id', authMiddleware, validateParams(schemas.serviceParams), async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.id);
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    if (service.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    if (service.promoted) {
+      return res.status(400).json({ error: 'Service is already promoted' });
+    }
+
+    const { paymentID } = req.body;
+    if (!paymentID) {
+      return res.status(400).json({ error: 'Payment ID required' });
+    }
+
+    await Service.findByIdAndUpdate(req.params.id, {
+      promoted: true,
+      promoted_at: new Date()
+    });
+
+    res.json({ message: 'Service promoted successfully', promotion_cost: 15 });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

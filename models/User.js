@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
     default: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR0QXBnLOPzEafGE-keGZ1VnS7yFPOZ9cB73Q&s'
   },
   role: { type: String, enum: allowedRoles, default: 'client' },
+  user_type: { type: String, enum: ['user', 'developer'], default: 'user' },
   github_id: String,
+  google_id: String,
   verification_status: {
     type: String,
     enum: ['none', 'pending', 'approved', 'rejected'],

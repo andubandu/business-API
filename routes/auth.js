@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post('/signup', validate(schemas.signup), async (req, res) => {
   try {
-    const { real_name, username, email, password } = req.body;
+    const { real_name, username, email, password, user_type } = req.body;
 
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
@@ -22,15 +22,16 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
       real_name,
       username,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      user_type: user_type || 'user'
     });
 
     await user.save();
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-    
+
     const userResponse = user.toObject();
     delete userResponse.password;
-    
+
     res.status(201).json({
       message: 'User created successfully',
       token,
@@ -44,7 +45,7 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
 router.post('/login', validate(schemas.login), async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
@@ -56,10 +57,10 @@ router.post('/login', validate(schemas.login), async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-    
+
     const userResponse = user.toObject();
     delete userResponse.password;
-    
+
     res.json({
       message: 'Login successful',
       token,
@@ -73,7 +74,7 @@ router.post('/login', validate(schemas.login), async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .select('-password -__v'); 
+      .select('-password -__v');
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -81,7 +82,6 @@ router.get('/me', authMiddleware, async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error('Error in /me route:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

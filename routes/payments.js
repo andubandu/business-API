@@ -55,8 +55,8 @@ router.post('/payment/success', authMiddleware, validate(schemas.paymentSuccess)
       });
     }
 
-    const platformEarnings = roundToTwoDecimals(amount * 0.4);
     const developerEarnings = roundToTwoDecimals(amount * 0.6);
+    const platformEarnings = roundToTwoDecimals(amount * 0.4);
 
     const transaction = new Transaction({
       serviceID,

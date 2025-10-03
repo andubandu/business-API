@@ -60,14 +60,10 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`User ${socket.user.username} connected to inbox`);
-  
   socket.join(`user_${socket.userId}`);
-  
-  socket.on('disconnect', () => {
-    console.log(`User ${socket.user.username} disconnected from inbox`);
-  });
-  
+
+  socket.on('disconnect', () => {});
+
   socket.on('mark_notification_read', async (notificationId) => {
     try {
       const Notification = require('./models/Notification');
@@ -75,18 +71,18 @@ io.on('connection', (socket) => {
         { _id: notificationId, recipient: socket.userId },
         { read: true, readAt: new Date() }
       );
-      
+
       const unreadCount = await Notification.countDocuments({
         recipient: socket.userId,
         read: false
       });
-      
+
       socket.emit('unread_count_updated', unreadCount);
     } catch (error) {
       socket.emit('error', 'Failed to mark notification as read');
     }
   });
-  
+
   socket.on('delete_notification', async (notificationId) => {
     try {
       const Notification = require('./models/Notification');
@@ -94,7 +90,7 @@ io.on('connection', (socket) => {
         _id: notificationId,
         recipient: socket.userId
       });
-      
+
       socket.emit('notification_deleted', notificationId);
     } catch (error) {
       socket.emit('error', 'Failed to delete notification');
@@ -128,12 +124,8 @@ app.get('/docs', (req, res) => {
   res.render('docs', { baseUrl: fullUrl });
 });
 
-
-
 app.get('/inbox', (req, res) => {
   res.render('inbox');
 });
 
-server.listen(3000, () => {
-  console.log('Server + Socket.IO running on http://localhost:3000');
-});
+server.listen(3000, () => {});
