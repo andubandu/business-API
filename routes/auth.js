@@ -94,10 +94,33 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
-router.get('/github/callback', passport.authenticate('github', { failureRedirect: '/login' }), async (req, res) => {
-  const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-  res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
-});
+router.get(
+  '/github/callback',
+  passport.authenticate('github', { failureRedirect: '/login' }),
+  async (req, res) => {
+    try {
+      let isNewUser = false;
+
+      if (!req.user.user_type) {
+        req.user.user_type = 'developer';
+        await req.user.save();
+        isNewUser = true;
+      }
+
+      const token = jwt.sign(
+        { userId: req.user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE }
+      );
+
+      res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
+    } catch (err) {
+      console.error(err);
+      res.redirect('/login');
+    }
+  }
+);
+
 
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
