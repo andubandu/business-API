@@ -323,6 +323,25 @@
         </div>
       </div>
 
+      <div class="new-feature">
+        <h4>Platform Features</h4>
+        <p><strong>User Types:</strong></p>
+        <ul>
+          <li><strong>User</strong> - Can request services and buy offerings</li>
+          <li><strong>Developer</strong> - Can list service offerings (requires verification + PayPal)</li>
+        </ul>
+        <p><strong>Service Types:</strong></p>
+        <ul>
+          <li><strong>Request</strong> - Users posting service requests (e.g., "I need a backend developer!")</li>
+          <li><strong>Offering</strong> - Developers offering services (e.g., "Mobile development, 9 years experience")</li>
+        </ul>
+        <p><strong>Promotion:</strong></p>
+        <ul>
+          <li>Any service (request or offering) can be promoted for exactly <strong>$15</strong></li>
+          <li>Promoted services appear first in listings</li>
+        </ul>
+      </div>
+
       <div class="payment-info">
         <h4>PayPal Payment System</h4>
         <p><strong>Automatic Payment Split:</strong></p>
@@ -375,7 +394,7 @@
           <p>Create new user account</p>
           <p>
             <strong>Body:</strong>
-            <code>real_name, username, email, password</code>
+            <code>real_name, username, email, password, user_type (optional: 'user' or 'developer', default: 'user')</code>
           </p>
         </div>
         <div class="route">
@@ -560,21 +579,35 @@
         <h2>Service Routes</h2>
         <div class="route">
           <h3><span class="endpoint method-post">POST</span> /services/new</h3>
-          <p>Create new service</p>
+          <p>Create new service request or offering</p>
           <p>
             <strong>Headers:</strong> <code>Authorization: Bearer {token}</code>
           </p>
           <p>
             <strong>Body:</strong>
-            <code>title, description, price, currency, category, tags</code>
+            <code>title, description, price, currency, category, tags, type ('request' or 'offering')</code>
           </p>
           <p>
             <strong>Supported Currencies:</strong> USD, EUR, GBP, CAD, AUD, JPY
           </p>
+          <div class="alert alert-warning">
+            <strong>Note:</strong> Creating 'offering' type requires approved verification status and connected PayPal account.
+          </div>
         </div>
         <div class="route">
           <h3><span class="endpoint method-get">GET</span> /services</h3>
           <p>List all services</p>
+          <p><strong>Query Parameters:</strong></p>
+          <ul>
+            <li><code>type</code> - Filter by type: 'request' or 'offering'</li>
+            <li><code>promoted</code> - Filter promoted services: 'true'</li>
+          </ul>
+          <p><strong>Examples:</strong></p>
+          <ul>
+            <li><code>GET /services?type=request</code> - Get all requests</li>
+            <li><code>GET /services?type=offering</code> - Get all offerings</li>
+            <li><code>GET /services?promoted=true</code> - Get promoted services</li>
+          </ul>
         </div>
         <div class="route">
           <h3><span class="endpoint method-get">GET</span> /services/{id}</h3>
@@ -600,8 +633,25 @@
           </p>
           <p>
             <strong>Body:</strong>
-            <code>title, description, price, currency, category, tags</code>
+            <code>title, description, price, currency, category, tags, type</code>
           </p>
+        </div>
+        <div class="route">
+          <h3>
+            <span class="endpoint method-post">POST</span> /services/promote/{id}
+          </h3>
+          <p>Promote a service (request or offering) for $15</p>
+          <p>
+            <strong>Headers:</strong> <code>Authorization: Bearer {token}</code>
+          </p>
+          <p>
+            <strong>Body:</strong>
+            <code>paymentID</code>
+          </p>
+          <p><strong>Response:</strong> Confirmation with promotion_cost: 15</p>
+          <div class="alert alert-warning">
+            <strong>Note:</strong> Service can only be promoted once. Promoted services appear first in listings.
+          </div>
         </div>
       </div>
 
