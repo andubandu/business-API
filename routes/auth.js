@@ -12,6 +12,10 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
   try {
     const { real_name, username, email, password, user_type } = req.body;
 
+    if (!user_type) {
+      return res.status(400).json({ error: 'User type is required' });
+    }
+
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
@@ -23,7 +27,7 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      user_type: user_type || 'user'
+      user_type
     });
 
     await user.save();
@@ -41,6 +45,7 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 router.post('/login', validate(schemas.login), async (req, res) => {
   try {
