@@ -27,7 +27,8 @@ const schemas = {
     real_name: Joi.string().min(2).max(50).required(),
     username: Joi.string().pattern(/^[a-zA-Z0-9_]+$/).min(3).max(30).required(),
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
+    password: Joi.string().min(6).required(),
+    user_type: Joi.string().valid('user', 'developer').required()
   }),
 
   login: Joi.object({
