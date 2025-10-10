@@ -8,25 +8,32 @@ const User = require('../models/User');
 passport.use(new GitHubStrategy({
   clientID: process.env.GITHUB_CLIENT_ID,
   clientSecret: process.env.GITHUB_CLIENT_SECRET,
-callbackURL: process.env.GITHUB_CALLBACK_URL
-}, async (accessToken, refreshToken, profile, done) => {
+  callbackURL: process.env.GITHUB_CALLBACK_URL,
+  scope: ['user:email'],
+  passReqToCallback: true
+}, async (req, accessToken, refreshToken, profile, done) => {
   try {
-    let user = await User.findOne({ github_id: profile.id });
-    if (user) {
-      return done(null, user);
+    const emails = profile.emails || [];
+    const primaryEmailObj = emails.find(e => e.primary && e.verified) || emails[0];
+    if (!primaryEmailObj || !primaryEmailObj.value) {
+      return done(new Error('No email found on GitHub profile'), null);
     }
-    user = new User({
-      real_name: profile.displayName || profile.username,
-      username: profile.username + '_gh',
-      email: profile.emails ? profile.emails[0].value : `${profile.username}@github.com`,
-      password: await bcrypt.hash('github_user', 10),
-      github_id: profile.id,
-      profile_image: profile.photos ? profile.photos[0].value : ''
-    });
-    await user.save();
+    const email = primaryEmailObj.value;
+    let user = await User.findOne({ github_id: profile.id });
+    if (!user) {
+      user = new User({
+        real_name: profile.displayName || profile.username,
+        username: profile.username + '_gh',
+        email,
+        password: await bcrypt.hash('github_user', 10),
+        github_id: profile.id,
+        profile_image: profile.photos?.[0]?.value || ''
+      });
+      await user.save();
+    }
     done(null, user);
-  } catch (error) {
-    done(error, null);
+  } catch (err) {
+    done(err, null);
   }
 }));
 
@@ -34,27 +41,28 @@ passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL,
-  scope: ['profile', 'email']
-}, async (accessToken, refreshToken, profile, done) => {
+  scope: ['profile', 'email'],
+  passReqToCallback: true
+}, async (req, accessToken, refreshToken, profile, done) => {
   try {
+    const email = profile.emails?.[0]?.value;
+    if (!email) return done(new Error('No email found on Google profile'), null);
     let user = await User.findOne({ google_id: profile.id });
-    if (user) return done(null, user);
-
-    user = new User({
-      real_name: profile.displayName,
-      username: profile.emails[0].value.split('@')[0] + '_google',
-      email: profile.emails[0].value,
-      password: await bcrypt.hash('google_user', 10),
-      google_id: profile.id,
-      profile_image: profile.photos[0]?.value || ''
-    });
-
-    await user.save();
+    if (!user) {
+      user = new User({
+        real_name: profile.displayName,
+        username: profile.emails[0].value.split('@')[0] + '_google',
+        email,
+        password: await bcrypt.hash('google_user', 10),
+        google_id: profile.id,
+        profile_image: profile.photos?.[0]?.value || ''
+      });
+      await user.save();
+    }
     done(null, user);
   } catch (err) {
     done(err, null);
   }
 }));
-
 
 module.exports = passport;

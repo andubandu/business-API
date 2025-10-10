@@ -42,29 +42,32 @@ const schemas = {
     email: Joi.string().email().optional()
   }),
 
-  createService: Joi.object({
-    title: Joi.string().min(5).max(100).required(),
-    description: Joi.string().min(20).max(1000).required(),
-    price: Joi.number().positive().required(),
-    currency: Joi.string().valid(...paypalSupportedCurrencies).default('USD'),
-    category: Joi.string().max(50).optional(),
-    tags: Joi.alternatives().try(
-      Joi.array().items(Joi.string().max(30)),
-      Joi.string().max(30)
-    ).optional()
-  }),
+createService: Joi.object({
+  type: Joi.string().valid('request', 'offering').required(),
+  title: Joi.string().min(5).max(100).required(),
+  description: Joi.string().min(20).max(1000).required(),
+  price: Joi.number().positive().when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
+  currency: Joi.string().valid(...paypalSupportedCurrencies).when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
+  category: Joi.string().max(50).optional(),
+  tags: Joi.alternatives().try(
+    Joi.array().items(Joi.string().max(30)),
+    Joi.string().max(30)
+  ).optional()
+}),
 
-  updateService: Joi.object({
-    title: Joi.string().min(5).max(100).optional(),
-    description: Joi.string().min(20).max(1000).optional(),
-    price: Joi.number().positive().optional(),
-    currency: Joi.string().valid(...paypalSupportedCurrencies).optional(),
-    category: Joi.string().max(50).optional(),
-    tags: Joi.alternatives().try(
-      Joi.array().items(Joi.string().max(30)),
-      Joi.string().max(30)
-    ).optional()
-  }),
+updateService: Joi.object({
+  type: Joi.string().valid('request', 'offering').optional(),
+  title: Joi.string().min(5).max(100).optional(),
+  description: Joi.string().min(20).max(1000).optional(),
+  price: Joi.number().positive().when('type', { is: 'offering', then: Joi.optional(), otherwise: Joi.forbidden() }),
+  currency: Joi.string().valid(...paypalSupportedCurrencies).when('type', { is: 'offering', then: Joi.optional(), otherwise: Joi.forbidden() }),
+  category: Joi.string().max(50).optional(),
+  tags: Joi.alternatives().try(
+    Joi.array().items(Joi.string().max(30)),
+    Joi.string().max(30)
+  ).optional()
+}),
+
 
   verification: Joi.object({
     requested_role: Joi.string().valid(...allowedRoles.filter(role => 

@@ -2,12 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const session = require('express-session');
-const passport = require('passport');
+const passport = require('./config/passport');
 const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
+const setupSwagger = require('./config/swagger');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,40 +17,35 @@ const io = socketIo(server, {
     methods: ["GET", "POST"]
   }
 });
-app.enable('trust proxy');
 
+app.enable('trust proxy');
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
-app.use(session({
-  secret: process.env.JWT_SECRET,
-  resave: false,
-  saveUninitialized: false
-}));
+
 app.use(passport.initialize());
-app.use(passport.session());
 
 app.set('io', io);
+setupSwagger(app);
 
-mongoose.connect(process.env.MONGODB_URI);
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
-    if (!token) {
-      return next(new Error('Authentication error'));
-    }
-    
+    if (!token) return next(new Error('Authentication error'));
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const User = require('./models/User');
     const user = await User.findById(decoded.userId);
-    
-    if (!user) {
-      return next(new Error('User not found'));
-    }
-    
+
+    if (!user) return next(new Error('User not found'));
+
     socket.userId = user._id.toString();
     socket.user = user;
     next();
@@ -78,7 +73,7 @@ io.on('connection', (socket) => {
       });
 
       socket.emit('unread_count_updated', unreadCount);
-    } catch (error) {
+    } catch {
       socket.emit('error', 'Failed to mark notification as read');
     }
   });
@@ -92,7 +87,7 @@ io.on('connection', (socket) => {
       });
 
       socket.emit('notification_deleted', notificationId);
-    } catch (error) {
+    } catch {
       socket.emit('error', 'Failed to delete notification');
     }
   });
@@ -106,8 +101,9 @@ const paymentRoutes = require('./routes/payments');
 const verificationRoutes = require('./routes/verification');
 const paypalRoutes = require('./routes/paypal');
 const notificationRoutes = require('./routes/notifications');
-const ratingRoutes = require('./routes/ratings')
+const ratingRoutes = require('./routes/ratings');
 const feedbackRoutes = require('./routes/feedbacks');
+
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/services', serviceRoutes);
@@ -116,16 +112,10 @@ app.use('/', paymentRoutes);
 app.use('/', verificationRoutes);
 app.use('/paypal', paypalRoutes);
 app.use('/notifications', notificationRoutes);
-app.use('/rating', ratingRoutes)
-app.get('/', (req,res) => res.redirect('/docs'))
+app.use('/rating', ratingRoutes);
 app.use('/feedback', feedbackRoutes);
-app.get('/docs', (req, res) => {
-  const fullUrl = `${req.protocol}://${req.get('host')}`;
-  res.render('docs', { baseUrl: fullUrl });
-});
 
-app.get('/inbox', (req, res) => {
-  res.render('inbox');
-});
+app.get('/', (req, res) => res.redirect('/api-docs'));
+app.get('/inbox', (req, res) => res.render('inbox'));
 
-server.listen(3000, () => {});
+server.listen(process.env.PORT || 3000, () => {});
