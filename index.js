@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const passport = require('./config/passport');
+const session = require('express-session');
+const passport = require('passport');
 const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -25,15 +26,23 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
 
+app.use(session({
+  secret: process.env.JWT_SECRET,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { 
+    secure: true,       
+    httpOnly: true,  
+    sameSite: 'lax'    
+  }
+}));
+
 app.use(passport.initialize());
+app.use(passport.session());
 
 app.set('io', io);
 setupSwagger(app);
-
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+mongoose.connect(process.env.MONGODB_URI);
 
 io.use(async (socket, next) => {
   try {
@@ -43,7 +52,6 @@ io.use(async (socket, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const User = require('./models/User');
     const user = await User.findById(decoded.userId);
-
     if (!user) return next(new Error('User not found'));
 
     socket.userId = user._id.toString();
@@ -73,7 +81,7 @@ io.on('connection', (socket) => {
       });
 
       socket.emit('unread_count_updated', unreadCount);
-    } catch {
+    } catch (error) {
       socket.emit('error', 'Failed to mark notification as read');
     }
   });
@@ -87,7 +95,7 @@ io.on('connection', (socket) => {
       });
 
       socket.emit('notification_deleted', notificationId);
-    } catch {
+    } catch (error) {
       socket.emit('error', 'Failed to delete notification');
     }
   });
@@ -114,8 +122,7 @@ app.use('/paypal', paypalRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/rating', ratingRoutes);
 app.use('/feedback', feedbackRoutes);
-
 app.get('/', (req, res) => res.redirect('/api-docs'));
 app.get('/inbox', (req, res) => res.render('inbox'));
 
-server.listen(process.env.PORT || 3000, () => {});
+server.listen(3000, () => {});

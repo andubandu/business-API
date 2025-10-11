@@ -148,7 +148,7 @@ router.get('/status', authMiddleware, async (req, res) => {
 /**
  * @swagger
  * /paypal/update:
- *   post:
+ *   patch:
  *     summary: Update PayPal account details
  *     tags: [PayPal]
  *     security:
@@ -190,7 +190,7 @@ router.get('/status', authMiddleware, async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/update', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
+router.patch('/update', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
   try {
     const { paypal_email, merchant_id } = req.body;
     
@@ -209,6 +209,7 @@ router.post('/update', authMiddleware, validate(schemas.paypalConnect), async (r
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 /**
  * @swagger

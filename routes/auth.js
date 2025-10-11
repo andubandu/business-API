@@ -5,8 +5,8 @@ const jwt = require('jsonwebtoken');
 const passport = require('../config/passport');
 const { validate, schemas } = require('../middleware/validation');
 const User = require('../models/User');
-const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
+const router = express.Router();
 
 /**
  * @swagger
@@ -27,6 +27,12 @@ const { authMiddleware } = require('../middleware/auth');
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UserSignup'
+ *           example:
+ *             real_name: "John Doe"
+ *             username: "johndoe"
+ *             email: "johndoe@example.com"
+ *             password: "StrongPassword123"
+ *             user_type: "user"
  *     responses:
  *       201:
  *         description: User created successfully
@@ -41,6 +47,24 @@ const { authMiddleware } = require('../middleware/auth');
  *                   type: string
  *                 user:
  *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               message: "User created successfully"
+ *               token: "JWT_TOKEN_HERE"
+ *               user:
+ *                 _id: "650b8e1f6c8e123456789abc"
+ *                 real_name: "John Doe"
+ *                 username: "johndoe"
+ *                 email: "johndoe@example.com"
+ *                 user_type: "user"
+ *                 github_id: null
+ *                 google_id: null
+ *                 verification_status: "none"
+ *                 paypal_account:
+ *                   email: null
+ *                   merchant_id: null
+ *                   connected: false
+ *                 createdAt: "2025-10-11T07:49:51.159Z"
+ *                 updatedAt: "2025-10-11T07:49:51.159Z"
  *       400:
  *         description: Invalid input or user already exists
  *       500:
@@ -50,14 +74,18 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
   try {
     const { real_name, username, email, password, user_type } = req.body;
     if (!user_type) return res.status(400).json({ error: 'User type is required' });
+
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) return res.status(400).json({ error: 'User already exists' });
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ real_name, username, email, password: hashedPassword, user_type });
     await user.save();
+
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
     const userResponse = user.toObject();
     delete userResponse.password;
+
     res.status(201).json({ message: 'User created successfully', token, user: userResponse });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -76,6 +104,9 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UserLogin'
+ *           example:
+ *             email: "johndoe@example.com"
+ *             password: "StrongPassword123"
  *     responses:
  *       200:
  *         description: Login successful
@@ -90,6 +121,24 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
  *                   type: string
  *                 user:
  *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               message: "Login successful"
+ *               token: "JWT_TOKEN_HERE"
+ *               user:
+ *                 _id: "650b8e1f6c8e123456789abc"
+ *                 real_name: "John Doe"
+ *                 username: "johndoe"
+ *                 email: "johndoe@example.com"
+ *                 user_type: "user"
+ *                 github_id: null
+ *                 google_id: null
+ *                 verification_status: "none"
+ *                 paypal_account:
+ *                   email: null
+ *                   merchant_id: null
+ *                   connected: false
+ *                 createdAt: "2025-10-11T07:49:51.159Z"
+ *                 updatedAt: "2025-10-11T07:49:51.159Z"
  *       400:
  *         description: Invalid credentials
  *       500:
@@ -100,11 +149,14 @@ router.post('/login', validate(schemas.login), async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
+
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
     const userResponse = user.toObject();
     delete userResponse.password;
+
     res.json({ message: 'Login successful', token, user: userResponse });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -126,6 +178,21 @@ router.post('/login', validate(schemas.login), async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/User'
+ *             example:
+ *               _id: "650b8e1f6c8e123456789abc"
+ *               real_name: "John Doe"
+ *               username: "johndoe"
+ *               email: "johndoe@example.com"
+ *               user_type: "user"
+ *               github_id: null
+ *               google_id: null
+ *               verification_status: "none"
+ *               paypal_account:
+ *                 email: null
+ *                 merchant_id: null
+ *                 connected: false
+ *               createdAt: "2025-10-11T07:49:51.159Z"
+ *               updatedAt: "2025-10-11T07:49:51.159Z"
  *       401:
  *         description: Unauthorized
  *       404:
@@ -143,13 +210,77 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+/**
+ * @swagger
+ * /auth/github:
+ *   get:
+ *     summary: Login with GitHub
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: t
+ *         schema:
+ *           type: string
+ *           enum: [developer]
+ *         description: User type for first login (only developer supported)
+ *     responses:
+ *       302:
+ *         description: Redirects to GitHub for authentication
+ */
+router.get('/github', (req, res, next) => {
+  const userType = 'developer';
+  req.session.oauthUserType = userType;
+  passport.authenticate('github', { scope: ['user:email'], session: false })(req, res, next);
+});
+
+/**
+ * @swagger
+ * /auth/github/callback:
+ *   get:
+ *     summary: GitHub OAuth callback
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to client with JWT token
+ */
 router.get('/github/callback', passport.authenticate('github', { session: false, failureRedirect: '/login' }), (req, res) => {
   const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
   res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
 });
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+/**
+ * @swagger
+ * /auth/google:
+ *   get:
+ *     summary: Login with Google
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: t
+ *         schema:
+ *           type: string
+ *           enum: [user, developer]
+ *         description: User type for first login (defaults to user)
+ *     responses:
+ *       302:
+ *         description: Redirects to Google for authentication
+ */
+router.get('/google', (req, res, next) => {
+  const userType = req.query?.t === 'developer' ? 'developer' : 'user';
+  req.session.oauthUserType = userType;
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false })(req, res, next);
+});
+
+/**
+ * @swagger
+ * /auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to client with JWT token
+ */
 router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: '/login' }), (req, res) => {
   const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
   res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
