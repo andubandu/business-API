@@ -245,7 +245,7 @@ router.get('/github', (req, res, next) => {
  */
 router.get('/github/callback', passport.authenticate('github', { session: false, failureRedirect: '/login' }), (req, res) => {
   const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-  res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
+  res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
 });
 
 /**
@@ -283,7 +283,7 @@ router.get('/google', (req, res, next) => {
  */
 router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: '/login' }), (req, res) => {
   const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-  res.redirect(`${process.env.CLIENT_URL}/sign-in?token=${token}`);
+  res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
 });
 
 /**
