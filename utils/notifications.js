@@ -20,7 +20,6 @@ async function createNotification(recipientId, type, title, message, data = {}, 
     await notification.save();
     console.log('[Notification] Saved notification:', notification._id);
 
-    // Access socket.io instance from global or your main app export
     const io = require('../index').io || global.io;
     if (io) {
       const populatedNotification = await Notification.findById(notification._id)
@@ -64,7 +63,7 @@ async function notifyServicePurchase(sellerId, buyerId, service, transaction) {
     const buyerUsername = buyer ? `@${buyer.username}` : '';
 
     const title = `🎉 Service Purchased!`;
-    const message = `Your service "${service.title}" was purchased for ${transaction.amountPaid} ${transaction.currency} by ${buyerName} ${buyerUsername}. You will receive ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} (60% after platform fee).`;
+    const message = `Your service "${service.title}" was purchased for ${transaction.amountPaid} ${transaction.currency} by ${buyerName} ${buyerUsername}. You will receive ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} (90% after platform fee).`;
 
     return await createNotification(
       sellerId,
@@ -83,7 +82,6 @@ async function notifyServicePurchase(sellerId, buyerId, service, transaction) {
     );
   } catch (error) {
     console.error('[Notification] Error notifying service purchase:', error);
-    // Fallback notification without buyer details
     const title = `🎉 Service Purchased!`;
     const message = `Your service "${service.title}" was purchased for ${transaction.amountPaid} ${transaction.currency} by a customer. You will receive ${transaction.developerEarnings.toFixed(2)} ${transaction.currency} (60% after platform fee).`;
 

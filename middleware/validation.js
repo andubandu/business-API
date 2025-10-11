@@ -20,7 +20,7 @@ const allowedRoles = [
   "vibecoder"
 ];
 
-const paypalSupportedCurrencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'];
+const paypalSupportedCurrencies = ['USD', 'EUR'];
 
 const schemas = {
   signup: Joi.object({
@@ -42,35 +42,36 @@ const schemas = {
     email: Joi.string().email().optional()
   }),
 
-createService: Joi.object({
-  type: Joi.string().valid('request', 'offering').required(),
-  title: Joi.string().min(5).max(100).required(),
-  description: Joi.string().min(20).max(1000).required(),
-  price: Joi.number().positive().when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
-  currency: Joi.string().valid(...paypalSupportedCurrencies).when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
-  category: Joi.string().max(50).optional(),
-  tags: Joi.alternatives().try(
-    Joi.array().items(Joi.string().max(30)),
-    Joi.string().max(30)
-  ).optional()
-}),
+  createService: Joi.object({
+    type: Joi.string().valid('request', 'offering').required(),
+    title: Joi.string().min(5).max(100).required(),
+    description: Joi.string().min(20).max(1000).required(),
+    price: Joi.number().positive().when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
+    currency: Joi.string().valid(...paypalSupportedCurrencies)
+      .when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
+    category: Joi.string().max(50).optional(),
+    tags: Joi.alternatives().try(
+      Joi.array().items(Joi.string().max(30)),
+      Joi.string().max(30)
+    ).optional()
+  }),
 
-updateService: Joi.object({
-  type: Joi.string().valid('request', 'offering').optional(),
-  title: Joi.string().min(5).max(100).optional(),
-  description: Joi.string().min(20).max(1000).optional(),
-  price: Joi.number().positive().when('type', { is: 'offering', then: Joi.optional(), otherwise: Joi.forbidden() }),
-  currency: Joi.string().valid(...paypalSupportedCurrencies).when('type', { is: 'offering', then: Joi.optional(), otherwise: Joi.forbidden() }),
-  category: Joi.string().max(50).optional(),
-  tags: Joi.alternatives().try(
-    Joi.array().items(Joi.string().max(30)),
-    Joi.string().max(30)
-  ).optional()
-}),
-
+  updateService: Joi.object({
+    type: Joi.string().valid('request', 'offering').optional(),
+    title: Joi.string().min(5).max(100).optional(),
+    description: Joi.string().min(20).max(1000).optional(),
+    price: Joi.number().positive().when('type', { is: 'offering', then: Joi.optional(), otherwise: Joi.forbidden() }),
+    currency: Joi.string().valid(...paypalSupportedCurrencies)
+      .when('type', { is: 'offering', then: Joi.optional(), otherwise: Joi.forbidden() }),
+    category: Joi.string().max(50).optional(),
+    tags: Joi.alternatives().try(
+      Joi.array().items(Joi.string().max(30)),
+      Joi.string().max(30)
+    ).optional()
+  }),
 
   verification: Joi.object({
-    requested_role: Joi.string().valid(...allowedRoles.filter(role => 
+    requested_role: Joi.string().valid(...allowedRoles.filter(role =>
       role !== 'client' && role !== 'vibecoder'
     )).required(),
     github_profile: Joi.string().uri().pattern(/github\.com/).required(),
@@ -137,11 +138,12 @@ updateService: Joi.object({
 
 const validate = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body);
+    const { error } = schema.validate(req.body, { abortEarly: false });
     if (error) {
-      return res.status(400).json({ 
-        error: 'Validation error', 
-        details: error.details.map(detail => detail.message)
+      console.warn('[Validation Error]', error.details.map(d => d.message));
+      return res.status(400).json({
+        error: 'Validation error',
+        details: error.details.map(d => d.message)
       });
     }
     next();
@@ -152,9 +154,10 @@ const validateParams = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.params);
     if (error) {
-      return res.status(400).json({ 
-        error: 'Parameter validation error', 
-        details: error.details.map(detail => detail.message)
+      console.warn('[Param Validation Error]', error.details.map(d => d.message));
+      return res.status(400).json({
+        error: 'Parameter validation error',
+        details: error.details.map(d => d.message)
       });
     }
     next();

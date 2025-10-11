@@ -17,7 +17,7 @@ const { authMiddleware } = require('../middleware/auth');
 
 /**
  * @swagger
- * /ratings:
+ * /rating:
  *   post:
  *     summary: Submit a new rating
  *     tags: [Ratings]
@@ -101,7 +101,7 @@ router.post(
 
 /**
  * @swagger
- * /ratings/user/{userId}:
+ * /rating/user/{userId}:
  *   get:
  *     summary: Get ratings for a specific user
  *     tags: [Ratings]
@@ -148,7 +148,7 @@ router.get(
 
 /**
  * @swagger
- * /ratings/service/{serviceId}:
+ * /rating/service/{serviceId}:
  *   get:
  *     summary: Get ratings for a specific service
  *     tags: [Ratings]

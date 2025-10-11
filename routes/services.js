@@ -79,7 +79,7 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
       }
 
       const user = await User.findById(req.user._id);
-      if (!user.paypal_account.connected) {
+      if (!user || !user.paypal_account?.connected) {
         return res.status(403).json({
           error: 'PayPal account required',
           message: 'Connect PayPal to receive payments.'
@@ -106,7 +106,7 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
 
     res.status(201).json(service);
   } catch (error) {
-    console.error(error);
+    console.error('[Service Creation Error]:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
