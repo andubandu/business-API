@@ -1,8 +1,8 @@
 const express = require('express');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
-const { validateParams, schemas } = require('../middleware/validation');
-const { notifyVerificationApproved, notifyVerificationRejected } = require('../utils/notifications');
-const User = require('../models/User');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth.js');
+const { validateParams, schemas } = require('../middleware/validation.js');
+const { notifyVerificationApproved, notifyVerificationRejected } = require('../utils/notifications.js');
+const User = require('../models/User.js');
 
 const router = express.Router();
 

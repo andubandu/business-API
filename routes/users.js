@@ -1,10 +1,10 @@
 const express = require('express');
 const multer = require('multer');
 const os = require('os');
-const { authMiddleware } = require('../middleware/auth');
-const { validate, validateParams, schemas } = require('../middleware/validation');
-const { uploadToCloudinary } = require('../utils/cloudinary');
-const User = require('../models/User');
+const { authMiddleware } = require('../middleware/auth.js');
+const { validate, validateParams, schemas } = require('../middleware/validation.js');
+const { uploadToCloudinary } = require('../utils/cloudinary.js');
+const User = require('../models/User.js');
 
 const router = express.Router();
 

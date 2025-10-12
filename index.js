@@ -8,7 +8,7 @@ const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
-const setupSwagger = require('./config/swagger');
+const setupSwagger = require('./config/swagger.js');
 
 const app = express();
 const server = http.createServer(app);

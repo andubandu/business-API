@@ -2,10 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const passport = require('../config/passport');
-const { validate, schemas } = require('../middleware/validation');
-const User = require('../models/User');
-const { authMiddleware } = require('../middleware/auth');
+const passport = require('../config/passport.js');
+const { validate, schemas } = require('../middleware/validation.js');
+const User = require('../models/User.js');
+const { authMiddleware } = require('../middleware/auth.js');
 const router = express.Router();
 
 /**

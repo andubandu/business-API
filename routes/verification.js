@@ -1,11 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const os = require('os');
-const { authMiddleware } = require('../middleware/auth');
-const { validate, schemas } = require('../middleware/validation');
-const { uploadToCloudinary } = require('../utils/cloudinary');
-const { analyzeGitHubProfile, validatePortfolioUrl } = require('../utils/github');
-const User = require('../models/User');
+const { authMiddleware } = require('../middleware/auth.js');
+const { validate, schemas } = require('../middleware/validation.js');
+const { uploadToCloudinary } = require('../utils/cloudinary.js');
+const { analyzeGitHubProfile, validatePortfolioUrl } = require('../utils/github.js');
+const User = require('../models/User.js');
 
 const router = express.Router();
 

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { allowedRoles } = require('../arrays');
+const { allowedRoles } = require('../arrays.js');
 
 const userSchema = new mongoose.Schema({
   real_name: { type: String, required: true },

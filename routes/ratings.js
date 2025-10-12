@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const Rating = require('../models/Rating');
-const User = require('../models/User');
-const Service = require('../models/Service');
-const { schemas, validate, validateParams } = require('../middleware/validation');
-const { authMiddleware } = require('../middleware/auth');
+const Rating = require('../models/Rating.js');
+const User = require('../models/User.js');
+const Service = require('../models/Service.js');
+const { schemas, validate, validateParams } = require('../middleware/validation.js');
+const { authMiddleware } = require('../middleware/auth.js');
 
 /**
  * @swagger

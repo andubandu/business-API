@@ -1,12 +1,12 @@
 require('dotenv').config();
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth');
-const { validate, validateParams, schemas } = require('../middleware/validation');
+const { authMiddleware } = require('../middleware/auth.js');
+const { validate, validateParams, schemas } = require('../middleware/validation.js');
 const { processPayoutToSeller } = require('../utils/paypal');
-const { notifyServicePurchase, notifyPayoutSent, notifyPayoutFailed } = require('../utils/notifications');
-const Service = require('../models/Service');
-const Transaction = require('../models/Transaction');
-const User = require('../models/User');
+const { notifyServicePurchase, notifyPayoutSent, notifyPayoutFailed } = require('../utils/notifications.js');
+const Service = require('../models/Service.js');
+const Transaction = require('../models/Transaction.js');
+const User = require('../models/User.js');
 
 const router = express.Router();
 

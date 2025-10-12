@@ -1,9 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth');
-const { validateParams, schemas, validate } = require('../middleware/validation');
-const User = require('../models/User');
-const Feedback = require('../models/Feedback');
+const { authMiddleware } = require('../middleware/auth.js');
+const { validateParams, schemas, validate } = require('../middleware/validation.js');
+const User = require('../models/User.js');
+const Feedback = require('../models/Feedback.js');
 
 const router = express.Router();
 

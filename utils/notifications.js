@@ -1,5 +1,5 @@
-const Notification = require('../models/Notification');
-const User = require('../models/User');
+const Notification = require('../models/Notification.js');
+const User = require('../models/User.js');
 
 async function createNotification(recipientId, type, title, message, data = {}, senderId = null) {
   console.log('[Notification] createNotification called:', { recipientId, type, title });
