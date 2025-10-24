@@ -10,7 +10,8 @@ const options = {
       description: 'Interactive API documentation for Koders4Hire',
     },
     servers: [
-      { url: 'https://api.k4h.dev', description: 'Production API server' }
+      { url: 'https://api.k4h.dev', description: 'Production API server' },
+      { url: 'http://localhost:3000', description: 'Local API server' }
     ],
     components: {
       securitySchemes: {

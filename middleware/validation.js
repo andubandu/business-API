@@ -41,12 +41,12 @@ const schemas = {
     username: Joi.string().pattern(/^[a-zA-Z0-9_]+$/).min(3).max(30).optional(),
     email: Joi.string().email().optional()
   }),
-
   createService: Joi.object({
     type: Joi.string().valid('request', 'offering').required(),
     title: Joi.string().min(5).max(100).required(),
     description: Joi.string().min(20).max(1000).required(),
-    price: Joi.number().positive().when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
+    price: Joi.number().positive()
+      .when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
     currency: Joi.string().valid(...paypalSupportedCurrencies)
       .when('type', { is: 'offering', then: Joi.required(), otherwise: Joi.forbidden() }),
     category: Joi.string().max(50).optional(),
@@ -55,7 +55,6 @@ const schemas = {
       Joi.string().max(30)
     ).optional()
   }),
-
   updateService: Joi.object({
     type: Joi.string().valid('request', 'offering').optional(),
     title: Joi.string().min(5).max(100).optional(),
@@ -136,20 +135,16 @@ const schemas = {
   })
 };
 
-const validate = (schema) => {
-  return (req, res, next) => {
-    const { error } = schema.validate(req.body, { abortEarly: false });
-    if (error) {
-      console.warn('[Validation Error]', error.details.map(d => d.message));
-      return res.status(400).json({
-        error: 'Validation error',
-        details: error.details.map(d => d.message)
-      });
-    }
-    next();
-  };
-};
-
+const validate = (schema) => (req, res, next) => {
+  const { error } = schema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return res.status(400).json({
+      error: 'Validation error',
+      details: error.details.map(d => d.message)
+    });
+  }
+  next();
+};  
 const validateParams = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.params);

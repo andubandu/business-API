@@ -3,14 +3,94 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth.js');
 const { validateParams, schemas } = require('../middleware/validation.js');
 const { notifyVerificationApproved, notifyVerificationRejected } = require('../utils/notifications.js');
 const User = require('../models/User.js');
+const Service = require('../models/Service.js');
 
 const router = express.Router();
+
+router.get('/verifications', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const users = await User.find({ verification_status: 'pending' }).select('-password');
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/approve/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userID);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await User.findByIdAndUpdate(req.params.userID, { role: user.requested_role, verification_status: 'approved' });
+    await notifyVerificationApproved(req.params.userID, user.requested_role);
+
+    res.json({ message: 'User approved' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/reject/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userID);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await User.findByIdAndUpdate(req.params.userID, { verification_status: 'rejected' });
+    await notifyVerificationRejected(req.params.userID, user.requested_role);
+
+    res.json({ message: 'User rejected' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/all-users', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/all-services', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const services = await Service.find();
+    res.json(services);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/delservice/:ServiceID', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.ServiceID);
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+
+    await Service.findByIdAndDelete(req.params.ServiceID);
+    res.json({ message: 'Service deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/deluser/:UserID', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.UserID);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await User.findByIdAndDelete(req.params.UserID);
+    res.json({ message: 'User deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 /**
  * @swagger
  * tags:
  *   name: Admin
- *   description: Administrative actions for user verifications
+ *   description: Administrative actions for user verifications and management
  */
 
 /**
@@ -29,31 +109,8 @@ const router = express.Router();
  *             schema:
  *               type: array
  *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                   username:
- *                     type: string
- *                   email:
- *                     type: string
- *                   real_name:
- *                     type: string
- *                   requested_role:
- *                     type: string
- *                   verification_status:
- *                     type: string
- *       500:
- *         description: Server error
+ *                 $ref: '#/components/schemas/User'
  */
-router.get('/verifications', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const users = await User.find({ verification_status: 'pending' }).select('-password');
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 /**
  * @swagger
@@ -69,42 +126,10 @@ router.get('/verifications', authMiddleware, adminMiddleware, async (req, res) =
  *         required: true
  *         schema:
  *           type: string
- *         description: ID of the user to approve
  *     responses:
  *       200:
  *         description: User approved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: User approved
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
  */
-router.post('/approve/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userID);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    await User.findByIdAndUpdate(req.params.userID, {
-      role: user.requested_role,
-      verification_status: 'approved'
-    });
-
-    await notifyVerificationApproved(req.params.userID, user.requested_role);
-
-    res.json({ message: 'User approved' });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 /**
  * @swagger
@@ -120,41 +145,73 @@ router.post('/approve/:userID', authMiddleware, adminMiddleware, validateParams(
  *         required: true
  *         schema:
  *           type: string
- *         description: ID of the user to reject
  *     responses:
  *       200:
  *         description: User rejected successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: User rejected
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
  */
-router.post('/reject/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userID);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
 
-    await User.findByIdAndUpdate(req.params.userID, {
-      verification_status: 'rejected'
-    });
+/**
+ * @swagger
+ * /admin/all-users:
+ *   get:
+ *     summary: List all users
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of all users
+ */
 
-    await notifyVerificationRejected(req.params.userID, user.requested_role);
+/**
+ * @swagger
+ * /admin/all-services:
+ *   get:
+ *     summary: List all services
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of all services
+ */
 
-    res.json({ message: 'User rejected' });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+/**
+ * @swagger
+ * /admin/delservice/{ServiceID}:
+ *   delete:
+ *     summary: Delete a service by ID
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ServiceID
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Service deleted successfully
+ */
 
+/**
+ * @swagger
+ * /admin/deluser/{UserID}:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: UserID
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ */
 
 module.exports = router;

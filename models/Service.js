@@ -6,7 +6,7 @@ const serviceSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   currency: {
     type: String,
-    enum: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'],
+    enum: ['USD', 'EUR'],
     default: 'USD'
   },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

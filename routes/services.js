@@ -11,16 +11,28 @@ const router = express.Router();
  * tags:
  *   name: Services
  *   description: Service management endpoints
+ *   x-notes:
+ *     - Offering: Requires user to be verified and have a connected PayPal account.
+ *     - Request: Do not include price or currency fields.
+ *     - Any type: 
+ *         - Title must be at least 5 characters long.
+ *         - Description must be at least 20 characters long.
  */
+
 
 /**
  * @swagger
  * /services/new:
  *   post:
- *     summary: Create a new service
+ *     summary: Create a new service (offering or request)
  *     tags: [Services]
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
+ *     description: >
+ *       Create a service. Notes:
+ *       - Offering: Requires the user to be verified and have a connected PayPal account.
+ *       - Request: Do not include price or currency fields.
+ *       - Any type: Title must be at least 5 characters long. Description must be at least 20 characters long.
  *     requestBody:
  *       required: true
  *       content:
@@ -28,44 +40,39 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
+ *               - type
  *               - title
  *               - description
- *               - type
  *             properties:
- *               title:
- *                 type: string
- *                 example: "Website Design"
- *               description:
- *                 type: string
- *                 example: "Professional website design service."
  *               type:
  *                 type: string
  *                 enum: [request, offering]
- *                 example: "offering"
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
  *               price:
  *                 type: number
- *                 example: 50
  *               currency:
  *                 type: string
- *                 example: USD
+ *                 enum: [USD, EUR]
  *               category:
  *                 type: string
- *                 example: "Design"
  *               tags:
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["web", "ui", "ux"]
  *     responses:
  *       201:
- *         description: Service created
+ *         description: Service created successfully
  *       400:
  *         description: Validation error
  *       403:
- *         description: Access denied (for offerings)
+ *         description: Access denied or PayPal required
  *       500:
  *         description: Server error
  */
+
 router.post('/new', authMiddleware, validate(schemas.createService), async (req, res) => {
   try {
     const { title, description, price, currency, category, tags, type } = req.body;
@@ -93,13 +100,10 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
       owner: req.user._id,
       category,
       tags: Array.isArray(tags) ? tags : tags ? [tags] : [],
-      type
+      type,
+      price: type === 'offering' ? parseFloat(price) : 0,
+      currency: type === 'offering' ? currency.toUpperCase() : 'USD'
     };
-
-    if (type === 'offering') {
-      serviceData.price = parseFloat(price);
-      serviceData.currency = currency.toUpperCase();
-    }
 
     const service = new Service(serviceData);
     await service.save();
@@ -110,7 +114,6 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 /**
  * @swagger
  * /services/:
