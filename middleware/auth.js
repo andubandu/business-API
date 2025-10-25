@@ -1,5 +1,6 @@
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User.js');
 
 const authMiddleware = async (req, res, next) => {
@@ -11,13 +12,15 @@ const authMiddleware = async (req, res, next) => {
     if (!decoded?.userId) return res.status(401).json({ error: 'Invalid token' });
 
     const user = await User.findById(decoded.userId);
-    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-req.user = {
-  _id: user._id,
-  role: user.role,
-  verification_status: user.verification_status
-};
+    req.user = {
+      _id: user._id,
+      role: user.role,
+      verification_status: user.verification_status,
+      paypal_account: user.paypal_account,
+      user_type: user.user_type
+    };
 
     next();
   } catch (error) {
@@ -25,6 +28,7 @@ req.user = {
     res.status(401).json({ error: 'Unauthorized' });
   }
 };
+
 
 const adminMiddleware = (req, res, next) => {
   if (req.user && ['admin', 'moderator', 'owner'].includes(req.user.role)) {
