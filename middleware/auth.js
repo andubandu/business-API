@@ -13,11 +13,12 @@ const authMiddleware = async (req, res, next) => {
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
 
-    req.user = {
-      id: user._id,
-      role: user.role,
-      verification_status: user.verification_status
-    };
+req.user = {
+  _id: user._id,
+  role: user.role,
+  verification_status: user.verification_status
+};
+
     next();
   } catch (error) {
     console.error('AuthMiddleware error:', error);

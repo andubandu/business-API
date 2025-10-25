@@ -72,25 +72,24 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-
 router.post('/new', authMiddleware, validate(schemas.createService), async (req, res) => {
   try {
     const { title, description, price, currency, category, tags, type } = req.body;
 
-    if (type === 'offering') {
-      if (req.user.verification_status !== 'approved') {
-        return res.status(403).json({
-          error: 'Access denied',
-          message: 'Only approved users can create offerings.'
-        });
-      }
+    if (!title || !description || !type) {
+      return res.status(400).json({ error: 'Missing required fields: title, description, type' });
+    }
 
+    if (type === 'offering') {
       const user = await User.findById(req.user._id);
-      if (!user || !user.paypal_account?.connected) {
+      if (!user?.paypal_account?.connected) {
         return res.status(403).json({
           error: 'PayPal account required',
           message: 'Connect PayPal to receive payments.'
         });
+      }
+      if (!price || !currency) {
+        return res.status(400).json({ error: 'Price and currency are required for offerings' });
       }
     }
 
@@ -98,7 +97,7 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
       title,
       description,
       owner: req.user._id,
-      category,
+      category: category || 'General',
       tags: Array.isArray(tags) ? tags : tags ? [tags] : [],
       type,
       price: type === 'offering' ? parseFloat(price) : 0,
@@ -107,13 +106,16 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
 
     const service = new Service(serviceData);
     await service.save();
-
     res.status(201).json(service);
+
   } catch (error) {
     console.error('[Service Creation Error]:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
+
+
+
 /**
  * @swagger
  * /services/:
