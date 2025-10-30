@@ -244,9 +244,20 @@ router.get('/github', (req, res, next) => {
  *       302:
  *         description: Redirects to client with JWT token
  */
-router.get('/github/callback', passport.authenticate('github', { session: false, failureRedirect: '/login' }), (req, res) => {
-  const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-  res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+
+router.get('/github/callback', (req, res, next) => {
+  passport.authenticate('github', { session: false }, (err, user, info) => {
+    if (err) return res.status(500).json({ msg: err.message });
+    if (!user) {
+      return res.status(400).json(JSON.parse(info.message));
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE,
+    });
+
+    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+  })(req, res, next);
 });
 
 /**
@@ -282,9 +293,19 @@ router.get('/google', (req, res, next) => {
  *       302:
  *         description: Redirects to client with JWT token
  */
-router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: '/login' }), (req, res) => {
-  const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-  res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user, info) => {
+    if (err) return res.status(500).json({ msg: err.message });
+    if (!user) {
+      return res.status(400).json(JSON.parse(info.message));
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE,
+    });
+
+    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+  })(req, res, next);
 });
 
 /**

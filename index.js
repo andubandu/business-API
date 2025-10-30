@@ -111,6 +111,7 @@ const paypalRoutes = require('./routes/paypal');
 const notificationRoutes = require('./routes/notifications');
 const ratingRoutes = require('./routes/ratings');
 const feedbackRoutes = require('./routes/feedbacks');
+const cartRoutes = require('./routes/cart');
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
@@ -119,6 +120,7 @@ app.use('/admin', adminRoutes);
 app.use('/', paymentRoutes);
 app.use('/', verificationRoutes);
 app.use('/paypal', paypalRoutes);
+app.use('/cart', cartRoutes)
 app.use('/notifications', notificationRoutes);
 app.use('/rating', ratingRoutes);
 app.use('/feedback', feedbackRoutes);

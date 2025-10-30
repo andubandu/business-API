@@ -67,12 +67,12 @@ router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (
   try {
     const { paypal_email, merchant_id } = req.body;
     
-    if (req.user.verification_status !== 'approved') {
-      return res.status(403).json({ 
-        error: 'Access denied', 
-        message: 'Only approved developers can connect PayPal accounts' 
-      });
-    }
+    // if (req.user.verification_status !== 'approved') {
+    //   return res.status(403).json({ 
+    //     error: 'Access denied', 
+    //     message: 'Only approved developers can connect PayPal accounts' 
+    //   });
+    // }
 
     await User.findByIdAndUpdate(req.user._id, {
       'paypal_account.email': paypal_email,

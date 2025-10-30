@@ -23,7 +23,7 @@ const upload = multer({
 
 /**
  * @swagger
- * /verification:
+ * /verify:
  *   post:
  *     summary: Submit verification request
  *     tags: [Verification]
@@ -70,6 +70,10 @@ router.post('/verify', authMiddleware, upload.array('certifications', 5), valida
 
     if (user.verification_status === 'approved') {
       return res.status(400).json({ error: 'Verification already approved' });
+    }
+
+    if (user.user_type != 'developer') {
+      return res.status(403).json({ error: 'Only developers can request verification' });
     }
 
     const { requested_role, github_profile, portfolio_url, experience_description, technical_answers } = req.body;
