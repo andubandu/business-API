@@ -117,7 +117,7 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/services', serviceRoutes);
 app.use('/admin', adminRoutes);
-app.use('/', paymentRoutes);
+app.use('/payments', paymentRoutes);
 app.use('/', verificationRoutes);
 app.use('/paypal', paypalRoutes);
 app.use('/cart', cartRoutes)
