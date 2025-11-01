@@ -30,8 +30,10 @@ passport.use(
         const emails = profile.emails || [];
         const primaryEmailObj =
           emails.find((e) => e.primary && e.verified) || emails[0];
-        if (!primaryEmailObj?.value)
+
+        if (!primaryEmailObj?.value) {
           return done(new Error('No email found on GitHub profile'), null);
+        }
 
         const email = primaryEmailObj.value.toLowerCase().trim();
         const githubId = profile.id;
@@ -40,19 +42,19 @@ passport.use(
 
         if (user) {
           if (user.google_id && !user.github_id) {
-            return done(null, false, {
-              message: JSON.stringify({
-                msg: 'This email is in use, but has been logged in with another method.'
-              }),
-            });
+            req.res.redirect(
+              `${process.env.CLIENT_URL}/login?error=${encodeURIComponent('invalidprovidergoogle')}`
+            );
+            return;
           }
+
           return done(null, user);
         }
 
         const userType = req.session?.oauthUserType || 'developer';
         user = await User.create({
           real_name: profile.displayName || profile.username,
-          username: profile.username + '_gh',
+          username: `${profile.username}_gh`,
           email,
           password: await bcrypt.hash('github_user', 10),
           github_id: githubId,
@@ -63,11 +65,13 @@ passport.use(
         delete req.session.oauthUserType;
         done(null, user);
       } catch (err) {
+        console.error('GitHub OAuth error:', err);
         done(err, null);
       }
     }
   )
 );
+
 
 passport.use(
   new GoogleStrategy(
@@ -81,19 +85,19 @@ passport.use(
     async (req, accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value?.toLowerCase().trim();
-        if (!email)
+        if (!email) {
           return done(new Error('No email found on Google profile'), null);
+        }
 
         const googleId = profile.id;
         let user = await User.findOne({ email });
 
         if (user) {
           if (user.github_id && !user.google_id) {
-            return done(null, false, {
-              message: JSON.stringify({
-                msg: 'This email is in use, but has been logged in with another method.'
-              }),
-            });
+            req.res.redirect(
+              `${process.env.CLIENT_URL}/login?error=${encodeURIComponent('invalidprovidergithub')}`
+            );
+            return;
           }
           return done(null, user);
         }
@@ -101,7 +105,7 @@ passport.use(
         const userType = req.session?.oauthUserType || 'user';
         user = await User.create({
           real_name: profile.displayName,
-          username: email.split('@')[0] + '_google',
+          username: `${email.split('@')[0]}_google`,
           email,
           password: await bcrypt.hash('google_user', 10),
           google_id: googleId,
@@ -117,5 +121,6 @@ passport.use(
     }
   )
 );
+
 
 module.exports = passport;
