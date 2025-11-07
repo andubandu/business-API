@@ -38,7 +38,6 @@
             <p class="muted">Your cart is empty.</p>
           <% } else { %>
             <% let subtotal = 0; %>
-
             <% cart.items.forEach(item => { 
                  const price = Number(item.product?.price || 0);
                  const qty = Number(item.quantity || 1);
@@ -55,7 +54,6 @@
                 </div>
               </div>
             <% }) %>
-
             <div class="mt small muted">Items: <%= cart.items.length %></div>
           <% } %>
 
@@ -67,9 +65,7 @@
           <div class="card">
             <h3 style="margin:0 0 12px 0;font-size:18px">Order Summary</h3>
 
-            <% /* subtotal computed while iterating; if not present compute defensively */ %>
             <% if (typeof subtotal === 'undefined') { subtotal = (cart.items || []).reduce((s,i)=> s + ((i.product?.price||0) * (i.quantity||1)), 0); } %>
-
             <% const platformFee = +(subtotal * 0.10).toFixed(2); %>
             <% const total = +(subtotal + platformFee).toFixed(2); %>
 
@@ -101,11 +97,15 @@
     (function () {
       const serverToken = '<%= (typeof token !== "undefined" && token) ? token : "" %>';
       const CART_ID = '<%= cart?._id || "" %>';
-      const PAYMENTS_ENDPOINT = '/payments/cart/success/' + CART_ID;
 
       const subtotal = <%= (typeof subtotal !== 'undefined' ? subtotal : 0) %>;
       const platformFee = +(subtotal * 0.10).toFixed(2);
       const total = +(subtotal + platformFee).toFixed(2);
+
+      function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? decodeURIComponent(match.pop()) : '';
+      }
 
       if (typeof paypal === 'undefined') {
         console.error('PayPal SDK not loaded. Check client id and network.');
@@ -117,39 +117,26 @@
 
         createOrder: function (data, actions) {
           return actions.order.create({
-            purchase_units: [{
-              amount: { value: total.toFixed(2) }
-            }],
-            application_context: {
-              shipping_preference: 'NO_SHIPPING'
-            }
+            purchase_units: [{ amount: { value: total.toFixed(2) } }],
+            application_context: { shipping_preference: 'NO_SHIPPING' }
           });
         },
 
-onApprove: function (data, actions) {
-  return actions.order.capture().then(function (details) {
-    // alert('Transaction completed by ' + (details.payer?.name?.given_name || 'buyer'));
+        onApprove: function (data, actions) {
+          return actions.order.capture().then(function (details) {
+            fetch('/payments/token-used', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: getCookie('token'), cartID: CART_ID })
+            }).catch(err => console.error('token-used fetch error', err));
 
-    function getCookie(name) {
-      const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-      return match ? decodeURIComponent(match.pop()) : '';
-    }
+            window.history.replaceState({}, document.title, window.location.pathname);
 
-    fetch('/payments/token-used', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: getCookie('token') })
-    }).catch(err => console.error('token-used fetch error', err));
-    }).catch(() => {});
-
-    window.history.replaceState({}, document.title, window.location.pathname);
-
-    setTimeout(() => {
-      window.location.href = '/payments/thank-you';
-    }, 700);
-  });
-},
-
+            setTimeout(() => {
+              window.location.href = '/payments/thank-you';
+            }, 700);
+          });
+        },
 
         onError: function (err) {
           console.error('PayPal Buttons error', err);
@@ -159,6 +146,7 @@ onApprove: function (data, actions) {
         onCancel: function () {
           alert('Payment cancelled.');
         }
+
       }).render('#paypal-button-container');
     })();
   </script>
