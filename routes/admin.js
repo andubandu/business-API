@@ -3,6 +3,7 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth.js');
 const { validateParams, schemas } = require('../middleware/validation.js');
 const { notifyVerificationApproved, notifyVerificationRejected } = require('../utils/notifications.js');
 const User = require('../models/User.js');
+const Transaction = require('../models/Transaction.js')
 const Service = require('../models/Service.js');
 
 const router = express.Router();
@@ -85,6 +86,15 @@ router.delete('/deluser/:UserID', authMiddleware, adminMiddleware, async (req, r
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+router.get('/transactions', authMiddleware, adminMiddleware, async (req,res) => {
+  try {
+    const transactions = await Transaction.find()
+    res.json(transactions)
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+})
 
 /**
  * @swagger

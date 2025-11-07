@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart Checkout</title>
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= paypal_client_id %>&currency=USD" data-sdk-integration-source="button-factory"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <div class="container mx-auto px-6 py-12">
+    <h1 class="text-4xl font-bold mb-8 text-center">Checkout</h1>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <div class="flex-1">
+        <h2 class="text-2xl font-semibold mb-4">Your Cart</h2>
+
+        <% if (!cart || cart.items.length === 0) { %>
+          <p class="text-gray-500">Your cart is empty.</p>
+        <% } else { %>
+          <% let subtotal = 0; %>
+          <% cart.items.forEach(item => { %>
+            <% subtotal += item.product.price * item.quantity; %>
+            <div class="bg-white rounded-xl shadow p-6 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <div class="flex-1">
+                <h3 class="text-xl font-semibold"><%= item.product.title %></h3>
+                <p class="text-gray-600 mb-2"><%= item.product.description %></p>
+                <p class="font-medium">
+                  Price: $<%= item.product.price %> x <%= item.quantity %> = $<%= (item.product.price * item.quantity).toFixed(2) %>
+                </p>
+              </div>
+              <div class="mt-4 sm:mt-0">
+                <form action="/cart/update" method="POST" class="flex gap-2">
+                  <input type="hidden" name="productId" value="<%= item.product._id %>">
+                  <input type="number" name="quantity" value="<%= item.quantity %>" min="0" class="w-16 p-1 rounded border">
+                  <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">Update</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+
+      <% if (cart && cart.items.length > 0) { %>
+        <div class="w-full lg:w-1/3 bg-white rounded-xl shadow p-6">
+          <h2 class="text-2xl font-semibold mb-4">Order Summary</h2>
+
+          <% const platformFee = subtotal * 0.1; %>
+          <% const total = subtotal + platformFee; %>
+
+          <div class="flex justify-between mb-2">
+            <span>Subtotal</span>
+            <span>$<%= subtotal.toFixed(2) %></span>
+          </div>
+          <div class="flex justify-between mb-2">
+            <span>Platform Fee (10%)</span>
+            <span>$<%= platformFee.toFixed(2) %></span>
+          </div>
+          <div class="flex justify-between font-bold text-lg mb-4">
+            <span>Total</span>
+            <span>$<%= total.toFixed(2) %></span>
+          </div>
+
+          <div id="paypal-button-container"></div>
+          <script>
+            paypal.Buttons({
+              createOrder: function(data, actions) {
+                return actions.order.create({
+                  purchase_units: [{
+                    amount: {
+                      value: '<%= total.toFixed(2) %>'
+                    }
+                  }]
+                });
+              },
+              onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+                  alert('Transaction completed by ' + details.payer.name.given_name);
+                  fetch('/payments/cart/success/<%= cart._id %>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      paymentID: data.orderID,
+                      amount: <%= total.toFixed(2) %>,
+                      currency: 'USD'
+                    })
+                  }).then(res => res.json()).then(res => console.log(res));
+                });
+              }
+            }).render('#paypal-button-container');
+          </script>
+
+          <a href="https://koders4hire.vercel.app/" class="block mt-6 text-center px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">
+            Continue Shopping
+          </a>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

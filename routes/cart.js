@@ -8,8 +8,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Cart
- *   description: Shopping cart operations
+ *   - name: Cart
+ *     description: Shopping cart operations
  */
 
 /**
@@ -64,13 +64,8 @@ router.post('/add', authMiddleware, async (req, res) => {
 
   const product = await Service.findById(productId);
   if (!product) return res.status(404).json({ msg: 'Product not found' });
-  if (product.owner.toString() === req.user._id.toString()) {
-    return res.status(400).json({ msg: 'Cannot add your own product to cart' });
-  }
-  if (product.type === "request") {
-    return res.status(400).json({ msg: 'Cannot add request-type products to cart' });
-  }
-
+  if (product.owner.toString() === req.user._id.toString()) return res.status(400).json({ msg: 'Cannot add your own product to cart' });
+  if (product.type === "request") return res.status(400).json({ msg: 'Cannot add request-type products to cart' });
 
   let cart = await Cart.findOne({ user: req.user._id });
   if (!cart) cart = await Cart.create({ user: req.user._id, items: [] });
