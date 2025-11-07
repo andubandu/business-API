@@ -107,6 +107,11 @@
         return match ? decodeURIComponent(match.pop()) : '';
       }
 
+      function getQuery(name){
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      }
+
       if (typeof paypal === 'undefined') {
         console.error('PayPal SDK not loaded. Check client id and network.');
         return;
@@ -126,8 +131,8 @@
           return actions.order.capture().then(function (details) {
             fetch('/payments/token-used', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: getCookie('token'), cartID: CART_ID })
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getCookie('token') },
+              body: JSON.stringify({ token: getQuery('token'), cartID: CART_ID })
             }).catch(err => console.error('token-used fetch error', err));
 
             window.history.replaceState({}, document.title, window.location.pathname);
