@@ -14,6 +14,10 @@ const router = express.Router();
  *       **Note:** Only approved developers can connect PayPal accounts. Ensure email and merchant ID are correct to receive payouts.
  */
 
+router.get('*', (req, res) => {
+  res.json({ message: 'PayPal routes are currently disabled.' });
+});
+
 /**
  * @swagger
  * /paypal/connect:
@@ -63,34 +67,34 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
-  try {
-    const { paypal_email, merchant_id } = req.body;
+// router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
+//   try {
+//     const { paypal_email, merchant_id } = req.body;
     
-    // if (req.user.verification_status !== 'approved') {
-    //   return res.status(403).json({ 
-    //     error: 'Access denied', 
-    //     message: 'Only approved developers can connect PayPal accounts' 
-    //   });
-    // }
+//     // if (req.user.verification_status !== 'approved') {
+//     //   return res.status(403).json({ 
+//     //     error: 'Access denied', 
+//     //     message: 'Only approved developers can connect PayPal accounts' 
+//     //   });
+//     // }
 
-    await User.findByIdAndUpdate(req.user._id, {
-      'paypal_account.email': paypal_email,
-      'paypal_account.merchant_id': merchant_id || '',
-      'paypal_account.connected': true,
-      'paypal_account.connected_at': new Date(),
-      'paypal_account.last_verified': new Date()
-    });
+//     await User.findByIdAndUpdate(req.user._id, {
+//       'paypal_account.email': paypal_email,
+//       'paypal_account.merchant_id': merchant_id || '',
+//       'paypal_account.connected': true,
+//       'paypal_account.connected_at': new Date(),
+//       'paypal_account.last_verified': new Date()
+//     });
 
-    res.json({ 
-      message: 'PayPal account connected successfully',
-      paypal_email: paypal_email,
-      merchant_id: merchant_id || 'Not provided'
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+//     res.json({ 
+//       message: 'PayPal account connected successfully',
+//       paypal_email: paypal_email,
+//       merchant_id: merchant_id || 'Not provided'
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
 
 /**
  * @swagger
@@ -129,21 +133,21 @@ router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (
  *       500:
  *         description: Server error
  */
-router.get('/status', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('paypal_account');
+// router.get('/status', authMiddleware, async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user._id).select('paypal_account');
     
-    res.json({
-      connected: user.paypal_account.connected,
-      email: user.paypal_account.email,
-      merchant_id: user.paypal_account.merchant_id,
-      connected_at: user.paypal_account.connected_at,
-      last_verified: user.paypal_account.last_verified
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+//     res.json({
+//       connected: user.paypal_account.connected,
+//       email: user.paypal_account.email,
+//       merchant_id: user.paypal_account.merchant_id,
+//       connected_at: user.paypal_account.connected_at,
+//       last_verified: user.paypal_account.last_verified
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
 
 /**
  * @swagger
@@ -190,25 +194,25 @@ router.get('/status', authMiddleware, async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.patch('/update', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
-  try {
-    const { paypal_email, merchant_id } = req.body;
+// router.patch('/update', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
+//   try {
+//     const { paypal_email, merchant_id } = req.body;
     
-    await User.findByIdAndUpdate(req.user._id, {
-      'paypal_account.email': paypal_email,
-      'paypal_account.merchant_id': merchant_id || '',
-      'paypal_account.last_verified': new Date()
-    });
+//     await User.findByIdAndUpdate(req.user._id, {
+//       'paypal_account.email': paypal_email,
+//       'paypal_account.merchant_id': merchant_id || '',
+//       'paypal_account.last_verified': new Date()
+//     });
 
-    res.json({ 
-      message: 'PayPal account updated successfully',
-      paypal_email: paypal_email,
-      merchant_id: merchant_id || 'Not provided'
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+//     res.json({ 
+//       message: 'PayPal account updated successfully',
+//       paypal_email: paypal_email,
+//       merchant_id: merchant_id || 'Not provided'
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
 
 
 /**
@@ -234,21 +238,21 @@ router.patch('/update', authMiddleware, validate(schemas.paypalConnect), async (
  *       500:
  *         description: Server error
  */
-router.post('/disconnect', authMiddleware, async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.user._id, {
-      'paypal_account.email': '',
-      'paypal_account.merchant_id': '',
-      'paypal_account.connected': false,
-      'paypal_account.connected_at': null,
-      'paypal_account.last_verified': null
-    });
+// router.post('/disconnect', authMiddleware, async (req, res) => {
+//   try {
+//     await User.findByIdAndUpdate(req.user._id, {
+//       'paypal_account.email': '',
+//       'paypal_account.merchant_id': '',
+//       'paypal_account.connected': false,
+//       'paypal_account.connected_at': null,
+//       'paypal_account.last_verified': null
+//     });
 
-    res.json({ message: 'PayPal account disconnected successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+//     res.json({ message: 'PayPal account disconnected successfully' });
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
 
 /**
  * @swagger

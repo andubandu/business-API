@@ -81,13 +81,14 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
     }
 
     if (type === 'offering') {
-      const user = await User.findById(req.user._id);
-      if (!user?.paypal_account?.connected) {
-        return res.status(403).json({
-          error: 'PayPal account required',
-          message: 'Connect PayPal to receive payments.'
-        });
-      }
+      // const user = await User.findById(req.user._id);
+      // if (!user?.paypal_account?.connected) {
+      //   return res.status(403).json({
+      //     error: 'PayPal account required',
+      //     message: 'Connect PayPal to receive payments.'
+      //   });
+      // } commented as we use sandbox for now
+      console.log('hi!')
       if (!price || !currency) {
         return res.status(400).json({ error: 'Price and currency are required for offerings' });
       }
