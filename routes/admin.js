@@ -96,6 +96,36 @@ router.get('/transactions', authMiddleware, adminMiddleware, async (req,res) => 
   }
 })
 
+router.patch('/usertype/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
+  try {
+    const { newRole } = req.body;
+    if (!newRole) {
+      return res.status(400).json({ error: 'New type is required' });
+    }
+    const user = await User.findById(req.params.userID);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await User.findByIdAndUpdate(req.params.userID, { user_type: newRole });
+    res.json({ message: 'User role updated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+})
+
+router.patch('/userrole/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
+  try {
+    const { newRole } = req.body;
+    if (!newRole) {
+      return res.status(400).json({ error: 'New role is required' });
+    }
+    const user = await User.findById(req.params.userID);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await User.findByIdAndUpdate(req.params.userID, { role: newRole });
+    res.json({ message: 'User role updated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }})
+
 /**
  * @swagger
  * tags:
