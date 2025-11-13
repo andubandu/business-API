@@ -10,12 +10,13 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const setupSwagger = require('./config/swagger.js');
 const { authMiddleware } = require('./middleware/auth.js');
+const { initChatSocket } = require('./config/socket');
 const Cart = require('./models/Cart.js');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  cors: { origin: "*", methods: ["GET","POST"] }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 const ENC_SECRET = process.env.ENC_SECRET;
@@ -37,17 +38,22 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 app.set('io', io);
+
 setupSwagger(app);
-mongoose.connect(process.env.MONGODB_URI);
+
+mongoose.connect(process.env.MONGODB_URI)
 
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('Authentication error'));
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const User = require('./models/User');
     const user = await User.findById(decoded.userId);
+
     if (!user) return next(new Error('User not found'));
+
     socket.userId = user._id.toString();
     socket.user = user;
     next();
@@ -58,8 +64,7 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket) => {
   socket.join(`user_${socket.userId}`);
-
-  socket.on('disconnect', () => {});
+  console.log(`🔔 Notification socket connected: ${socket.user.username}`);
 
   socket.on('mark_notification_read', async (notificationId) => {
     try {
@@ -84,7 +89,13 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Failed to delete notification');
     }
   });
+
+  socket.on('disconnect', () => {
+    console.log(`❌ Notification socket disconnected: ${socket.user.username}`);
+  });
 });
+
+initChatSocket(server);
 
 app.use('/auth', require('./routes/auth'));
 app.use('/users', require('./routes/users'));
@@ -97,7 +108,8 @@ app.use('/cart', require('./routes/cart'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/rating', require('./routes/ratings'));
 app.use('/feedback', require('./routes/feedbacks'));
-
+app.use('/proposals', require('./routes/proposals'));
+app.use('/chat', require('./routes/chat'));
 app.get('/', (req, res) => res.redirect('/api-docs'));
 app.get('/inbox', (req, res) => res.render('inbox'));
 
@@ -121,7 +133,6 @@ function decryptToken(token) {
   return JSON.parse(decrypted);
 }
 
-
 app.get('/redirect', authMiddleware, async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.user._id });
@@ -137,11 +148,15 @@ app.get('/redirect', authMiddleware, async (req, res) => {
     const encryptedToken = encryptToken(payload);
     const checkoutUrl = `${process.env.BASE_URL}/payments/cart/checkout?token=${encodeURIComponent(encryptedToken)}`;
 
-    res.json({ message: 'Checkout link generated', checkout_url: checkoutUrl, expires_in: '5 minutes' });
+    res.json({
+      message: 'Checkout link generated',
+      checkout_url: checkoutUrl,
+      expires_in: '5 minutes'
+    });
   } catch (err) {
     console.error('Redirect error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-server.listen(3000)
+app.listen(3000)

@@ -3,7 +3,7 @@ const { authMiddleware } = require('../middleware/auth.js');
 const { validate, validateParams, schemas } = require('../middleware/validation.js');
 const Service = require('../models/Service.js');
 const User = require('../models/User.js');
-
+const Proposal = require('../models/Proposal.js');
 const router = express.Router();
 
 /**
@@ -112,6 +112,73 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
   } catch (error) {
     console.error('[Service Creation Error]:', error);
     res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /services/browse:
+ *   get:
+ *     summary: Browse services with filters
+ *     tags: [Services]
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [request, offering]
+ *         description: Filter by service type
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by service category
+ *       - in: query
+ *         name: minPrice
+ *         schema:
+ *           type: number
+ *         description: Minimum price filter
+ *       - in: query
+ *         name: maxPrice
+ *         schema:
+ *           type: number
+ *         description: Maximum price filter
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Comma-separated tags to filter services
+ *     responses:
+ *       200:
+ *         description: List of filtered services
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Service'
+ *       500:
+ *         description: Server error
+ */
+
+router.get('/browse', async (req, res) => {
+  try {
+    const { type, category, minPrice, maxPrice, tags } = req.query;
+    const filter = { type };
+
+    if (category) filter.category = category;
+    if (minPrice || maxPrice) filter.price = {};
+    if (minPrice) filter.price.$gte = parseFloat(minPrice);
+    if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+    if (tags) filter.tags = { $all: tags.split(',') };
+
+    const services = await Service.find(filter)
+      .populate('owner', 'username real_name profile_image user_type')
+      .sort({ promoted: -1, createdAt: -1 });
+
+    res.json(services);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -353,4 +420,34 @@ router.post('/promote/:id', authMiddleware, validateParams(schemas.serviceParams
   }
 });
 
+
+router.post('/:id/propose', authMiddleware, async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.id).populate('owner');
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+
+    if (service.owner._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ error: 'Cannot propose to your own service' });
+    }
+
+    const { message, price } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    const proposal = new Proposal({
+      service: service._id,
+      buyer: req.user._id,
+      seller: service.owner._id,
+      message,
+      price: price || service.price || 0,
+    });
+
+    await proposal.save();
+    service.proposals.push(proposal._id);
+    await service.save();
+
+    res.status(201).json(proposal);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
 module.exports = router;

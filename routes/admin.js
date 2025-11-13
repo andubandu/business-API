@@ -17,6 +17,15 @@ router.get('/verifications', authMiddleware, adminMiddleware, async (req, res) =
   }
 });
 
+router.get('/transactions', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const transactions = await Transaction.find();
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  } 
+});
+
 router.post('/approve/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
   try {
     const user = await User.findById(req.params.userID);
@@ -86,15 +95,6 @@ router.delete('/deluser/:UserID', authMiddleware, adminMiddleware, async (req, r
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-router.get('/transactions', authMiddleware, adminMiddleware, async (req,res) => {
-  try {
-    const transactions = await Transaction.find()
-    res.json(transactions)
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-})
 
 router.patch('/usertype/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {
   try {

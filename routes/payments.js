@@ -11,7 +11,6 @@ const UsedToken = require('../models/usedToken.js')
 const router = express.Router();
 const ENC_SECRET = Buffer.from(process.env.ENC_SECRET, 'hex');
 const cookieParser = require('cookie-parser');
-
 router.use(cookieParser());
 
 function roundToTwoDecimals(amount) {
@@ -142,6 +141,22 @@ router.post('/token-used', async (req, res) => {
     await UsedToken.create({ token });
 
     if (cartID) {
+      const cart = await Cart.findById(cartID).populate('items.product');
+      if (cart) {
+        for (const item of cart.items) {
+          const service = item.product;
+          const transaction = new Transaction({
+            serviceID: service._id,
+            buyerID: cart.user,
+            sellerID: service.owner,
+            amountPaid: service.price * item.quantity,
+            currency: 'USD',
+            platformEarnings: roundToTwoDecimals(service.price * 0.1 * item.quantity),
+            developerEarnings: roundToTwoDecimals(service.price * 0.9 * item.quantity)
+          });
+          await transaction.save();
+        }
+      }
       await Cart.findByIdAndDelete(cartID);
     }
 

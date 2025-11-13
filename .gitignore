@@ -3,3 +3,4 @@ node_modules
 .env.production
 *.env.*
 tokengenerator.js
+*.test.js

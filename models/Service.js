@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const serviceSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  price: { type: Number, required: true },
+  price: { type: Number, required: function() { return this.type === 'offering'; } },
   currency: {
     type: String,
     enum: ['USD', 'EUR'],
@@ -20,7 +20,8 @@ const serviceSchema = new mongoose.Schema({
   promoted: { type: Boolean, default: false },
   promoted_at: { type: Date },
   averageRating: { type: Number, default: 0 },
-  totalScore: { type: [Number], default: [] }
+  totalScore: { type: [Number], default: [] },
+  proposals: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Proposal' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Service', serviceSchema);
