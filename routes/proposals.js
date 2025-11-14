@@ -55,22 +55,22 @@ router.post('/:serviceId/new', authMiddleware, async (req, res) => {
     const service = await Service.findById(req.params.serviceId).populate('owner');
     if (!service) return res.status(404).json({ error: 'Service not found' });
 
-    const buyer = req.user._id;
-    const seller = service.owner._id;
+    const buyerId = req.user._id.toString();
+    const sellerId = service.owner._id.toString();
 
-    if (buyer.toString() === seller.toString()) {
+    if (buyerId === sellerId) {
       return res.status(400).json({ error: 'Cannot send a proposal to your own service' });
     }
 
-    const existingProposal = await Proposal.findOne({ service: service._id, buyer });
+    const existingProposal = await Proposal.findOne({ service: service._id, buyer: buyerId });
     if (existingProposal) {
       return res.status(400).json({ error: 'You already sent a proposal for this service' });
     }
 
     const proposal = new Proposal({
       service: service._id,
-      buyer,
-      seller,
+      buyer: buyerId,
+      seller: sellerId,
       message,
       price: price ? parseFloat(price) : service.price || 0,
       status: 'pending'
@@ -83,6 +83,7 @@ router.post('/:serviceId/new', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
+
 
 /**
  * @swagger
