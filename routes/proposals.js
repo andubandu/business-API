@@ -125,7 +125,7 @@ router.get('/received', authMiddleware, async (req, res) => {
   try {
     const proposals = await Proposal.find({ seller: req.user._id })
       .populate('service', 'title type')
-      .populate('buyer', 'username profile_image')
+      .populate('buyer', 'username profile_image real_name')
       .sort({ createdAt: -1 });
 
     res.json(proposals);
