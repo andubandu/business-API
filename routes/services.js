@@ -19,6 +19,59 @@ const router = express.Router();
  *         - Description must be at least 20 characters long.
  */
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Service:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         title:
+ *           type: string
+ *         description:
+ *           type: string
+ *         owner:
+ *           type: object
+ *           properties:
+ *             _id:
+ *               type: string
+ *             username:
+ *               type: string
+ *             real_name:
+ *               type: string
+ *             profile_image:
+ *               type: string
+ *             user_type:
+ *               type: string
+ *         category:
+ *           type: string
+ *         tags:
+ *           type: array
+ *           items:
+ *             type: string
+ *         type:
+ *           type: string
+ *           enum: [request, offering]
+ *         price:
+ *           type: number
+ *           format: float
+ *         currency:
+ *           type: string
+ *         promoted:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *       required:
+ *         - _id
+ *         - title
+ *         - description
+ */
 
 /**
  * @swagger
@@ -114,6 +167,35 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
     res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
+
+/**
+ * @swagger
+ * /services/my:
+ *  get:
+ *    summary: Get services created by the logged-in user
+ *   tags: [Services]
+ *   security:
+ *    - BearerAuth: []
+ *   responses:
+ *      200:
+ *       description: List of user's services
+ *     500:
+ *      description: Server error
+ * /
+ */
+
+router.get('/my', authMiddleware, async (req, res) => {
+  try {
+    const services = await Service.find({ 
+      $or: [{ owner: req.user._id }, { author: req.user._id }] 
+    });
+    res.json(services);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 /**
  * @swagger

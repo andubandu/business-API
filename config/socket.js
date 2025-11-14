@@ -1,7 +1,8 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const Message = require('../models/Message');
 const Chat = require('../models/Chat');
+const Message = require('../models/Message');
+const Milestone = require('../models/Milestone');
 const User = require('../models/User');
 
 let io;
@@ -36,33 +37,21 @@ function initChatSocket(server) {
 
     socket.on('send_message', async (data) => {
       try {
-        const { chatId, recipientId, text } = data;
-
-        if (!text || (!chatId && !recipientId)) {
+        const { chatId, content, type, milestoneId } = data;
+        if (!chatId || (!content && type !== 'milestone')) {
           return socket.emit('error', 'Missing required fields');
         }
 
-        let chat;
-        if (chatId) {
-          chat = await Chat.findById(chatId);
-          if (!chat) return socket.emit('error', 'Chat not found');
-        } else {
-          chat = await Chat.findOneAndUpdate(
-            {
-              participants: { $all: [socket.userId, recipientId] },
-              type: 'private'
-            },
-            {
-              $setOnInsert: { participants: [socket.userId, recipientId], type: 'private' }
-            },
-            { upsert: true, new: true }
-          );
-        }
+        const chat = await Chat.findById(chatId);
+        if (!chat) return socket.emit('error', 'Chat not found');
+        if (!chat.participants.includes(socket.userId)) return socket.emit('error', 'Not authorized');
 
         const message = new Message({
           chat: chat._id,
           sender: socket.userId,
-          text: text.trim(),
+          content: content || '',
+          type: type || 'text',
+          milestone: milestoneId || undefined
         });
 
         await message.save();
@@ -71,17 +60,44 @@ function initChatSocket(server) {
         chat.updatedAt = new Date();
         await chat.save();
 
-        io.to(chat._id.toString()).emit('new_message', {
-          _id: message._id,
-          chat: chat._id,
-          sender: socket.userId,
-          text: message.text,
-          createdAt: message.createdAt
-        });
-
+        io.to(chat._id.toString()).emit('new_message', message);
       } catch (err) {
         console.error('Send message error:', err);
         socket.emit('error', 'Failed to send message');
+      }
+    });
+
+    socket.on('create_milestone', async (data) => {
+      try {
+        const { chatId, title, description, price, dueDate } = data;
+        const chat = await Chat.findById(chatId);
+        if (!chat) return socket.emit('error', 'Chat not found');
+        if (!chat.participants.includes(socket.userId)) return socket.emit('error', 'Not authorized');
+
+        const milestone = await Milestone.create({
+          proposal: chat.proposal,
+          title,
+          description,
+          price,
+          dueDate
+        });
+
+        const milestoneMessage = new Message({
+          chat: chat._id,
+          sender: socket.userId,
+          type: 'milestone',
+          milestone: milestone._id
+        });
+
+        await milestoneMessage.save();
+        chat.lastMessage = milestoneMessage._id;
+        chat.updatedAt = new Date();
+        await chat.save();
+
+        io.to(chat._id.toString()).emit('new_milestone', { milestone, message: milestoneMessage });
+      } catch (err) {
+        console.error('Create milestone error:', err);
+        socket.emit('error', 'Failed to create milestone');
       }
     });
 
@@ -89,13 +105,16 @@ function initChatSocket(server) {
       try {
         await Message.updateMany(
           { chat: chatId, sender: { $ne: socket.userId }, read: false },
-          { $set: { read: true, readAt: new Date() } }
+          { $set: { read: true } }
         );
-
         io.to(chatId).emit('messages_read', { chatId, userId: socket.userId });
       } catch (err) {
         socket.emit('error', 'Failed to mark messages as read');
       }
+    });
+
+    socket.on('typing', ({ chatId, isTyping }) => {
+      socket.to(chatId).emit('typing', { userId: socket.userId, isTyping });
     });
 
     socket.on('disconnect', () => {

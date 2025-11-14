@@ -102,4 +102,80 @@ router.get('/:chatId/messages', authMiddleware, async (req, res) => {
   }
 });
 
+router.post('/:chatId/read', authMiddleware, async (req, res) => {
+  try {
+    const chat = await Chat.findById(req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    const isParticipant = chat.participants.map(p => p.toString()).includes(req.user._id.toString());
+    if (!isParticipant) return res.status(403).json({ error: 'Not authorized' });
+
+    await Message.updateMany(
+      {
+        chat: chat._id,
+        sender: { $ne: req.user._id },
+        readAt: { $exists: false }
+      },
+      { readAt: new Date() }
+    );
+
+    const io = req.app.get('io');
+    io.to(chat._id.toString()).emit('messages_read', { chatId: chat._id });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Mark Read Error]:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:chatId/delivered/:messageId', authMiddleware, async (req, res) => {
+  try {
+    const { chatId, messageId } = req.params;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    const isParticipant = chat.participants.map(p => p.toString()).includes(req.user._id.toString());
+    if (!isParticipant) return res.status(403).json({ error: 'Not authorized' });
+
+    const msg = await Message.findByIdAndUpdate(
+      messageId,
+      { deliveredAt: new Date() },
+      { new: true }
+    );
+
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+    const io = req.app.get('io');
+    io.to(chatId).emit('message_delivered', { messageId });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Delivered ACK Error]:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:chatId/typing', authMiddleware, async (req, res) => {
+  try {
+    const chat = await Chat.findById(req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    const isParticipant = chat.participants.map(p => p.toString()).includes(req.user._id.toString());
+    if (!isParticipant) return res.status(403).json({ error: 'Not authorized' });
+
+    const io = req.app.get('io');
+    io.to(chat._id.toString()).emit('typing', {
+      userId: req.user._id,
+      isTyping: req.body.isTyping || false
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Typing Error]:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

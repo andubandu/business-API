@@ -159,4 +159,7 @@ app.get('/redirect', authMiddleware, async (req, res) => {
   }
 });
 
-app.listen(3000)
+// app.listen(3000)
+server.listen(3000, () => {
+  console.log("socket and backend running on http://localhost:3000");
+})

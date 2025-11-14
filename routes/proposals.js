@@ -3,7 +3,7 @@ const { authMiddleware } = require('../middleware/auth.js');
 const Proposal = require('../models/Proposal.js');
 const Service = require('../models/Service.js');
 const router = express.Router();
-
+const Chat = require('../models/Chat.js');
 /**
  * @swagger
  * tags:
@@ -210,9 +210,28 @@ router.post('/:id/accept', authMiddleware, async (req, res) => {
     proposal.status = 'accepted';
     await proposal.save();
 
-    res.json({ message: 'Proposal accepted', proposal });
+    let chat = await Chat.findOne({ proposal: proposal._id });
+
+    if (!chat) {
+      chat = await Chat.create({
+        proposal: proposal._id,
+        participants: [proposal.buyer, proposal.seller]
+      });
+    }
+
+    const populatedChat = await Chat.findById(chat._id)
+      .populate('participants', '-password -__v -email')
+      .populate('lastMessage')
+      .populate('proposal');
+
+    res.json({
+      message: 'Proposal accepted, chat ready',
+      chat: populatedChat
+    });
+
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('[Proposal Accept Error]:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
