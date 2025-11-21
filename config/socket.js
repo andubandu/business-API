@@ -1,128 +1,122 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const Chat = require('../models/Chat');
-const Message = require('../models/Message');
-const Milestone = require('../models/Milestone');
-const User = require('../models/User');
+const { Server } = require('socket.io')
+const jwt = require('jsonwebtoken')
+const Chat = require('../models/Chat')
+const Message = require('../models/Message')
+const Notification = require('../models/Notification')
+const User = require('../models/User')
+const Milestone = require('../models/Milestone')
 
-let io;
+let io
 
-function initChatSocket(server) {
-  io = new Server(server, {
-    cors: { origin: '*', methods: ['GET', 'POST'] }
-  });
+function authMiddlewareSocket(socket, next) {
+  try {
+    const token = socket.handshake.auth.token
+    if (!token) return next(new Error('Authentication required'))
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    User.findById(decoded.userId)
+      .then(user => {
+        if (!user) return next(new Error('User not found'))
+        socket.userId = user._id.toString()
+        socket.user = user
+        next()
+      })
+      .catch(() => next(new Error('Authentication failed')))
+  } catch {
+    next(new Error('Authentication failed'))
+  }
+}
 
-  io.use(async (socket, next) => {
+function initSocket(server) {
+  if (io) return io
+
+  io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } })
+  io.use(authMiddlewareSocket)
+
+  io.on('connection', async socket => {
+    console.log(`Socket connected: ${socket.user.username}`)
+    
     try {
-      const token = socket.handshake.auth.token;
-      if (!token) return next(new Error('Authentication required'));
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId);
-      if (!user) return next(new Error('User not found'));
-
-      socket.userId = user._id.toString();
-      socket.user = user;
-      next();
+      const chats = await Chat.find({ participants: socket.userId })
+      chats.forEach(c => socket.join(c._id.toString()))
     } catch (err) {
-      next(new Error('Authentication failed'));
+      console.error('Error joining chat rooms:', err)
     }
-  });
 
-  io.on('connection', async (socket) => {
-    console.log(`💬 Chat socket connected: ${socket.user.username}`);
-
-    const chats = await Chat.find({ participants: socket.userId });
-    chats.forEach(chat => socket.join(chat._id.toString()));
-
-    socket.on('send_message', async (data) => {
+    // ===== CHAT =====
+    socket.on('send_message', async ({ chatId, content, type, milestoneId }) => {
+      if (!chatId || !content) return
       try {
-        const { chatId, content, type, milestoneId } = data;
-        if (!chatId || (!content && type !== 'milestone')) {
-          return socket.emit('error', 'Missing required fields');
-        }
+        const chat = await Chat.findById(chatId)
+        if (!chat || !chat.participants.includes(socket.userId)) return
 
-        const chat = await Chat.findById(chatId);
-        if (!chat) return socket.emit('error', 'Chat not found');
-        if (!chat.participants.includes(socket.userId)) return socket.emit('error', 'Not authorized');
-
-        const message = new Message({
+        const message = await new Message({
           chat: chat._id,
           sender: socket.userId,
-          content: content || '',
+          content,
           type: type || 'text',
           milestone: milestoneId || undefined
-        });
+        }).save()
 
-        await message.save();
+        chat.lastMessage = message._id
+        chat.updatedAt = new Date()
+        await chat.save()
 
-        chat.lastMessage = message._id;
-        chat.updatedAt = new Date();
-        await chat.save();
-
-        io.to(chat._id.toString()).emit('new_message', message);
+        io.to(chat._id.toString()).emit('new_message', {
+          ...message.toObject(),
+          sender: { _id: socket.user._id, username: socket.user.username, real_name: socket.user.real_name, profile_image: socket.user.profile_image }
+        })
       } catch (err) {
-        console.error('Send message error:', err);
-        socket.emit('error', 'Failed to send message');
+        console.error('send_message error:', err)
       }
-    });
+    })
 
-    socket.on('create_milestone', async (data) => {
-      try {
-        const { chatId, title, description, price, dueDate } = data;
-        const chat = await Chat.findById(chatId);
-        if (!chat) return socket.emit('error', 'Chat not found');
-        if (!chat.participants.includes(socket.userId)) return socket.emit('error', 'Not authorized');
+    socket.on('typing', ({ chatId, isTyping }) => {
+      if (!chatId) return
+      socket.to(chatId).emit('typing', { chatId, userId: socket.userId, isTyping })
+    })
 
-        const milestone = await Milestone.create({
-          proposal: chat.proposal,
-          title,
-          description,
-          price,
-          dueDate
-        });
-
-        const milestoneMessage = new Message({
-          chat: chat._id,
-          sender: socket.userId,
-          type: 'milestone',
-          milestone: milestone._id
-        });
-
-        await milestoneMessage.save();
-        chat.lastMessage = milestoneMessage._id;
-        chat.updatedAt = new Date();
-        await chat.save();
-
-        io.to(chat._id.toString()).emit('new_milestone', { milestone, message: milestoneMessage });
-      } catch (err) {
-        console.error('Create milestone error:', err);
-        socket.emit('error', 'Failed to create milestone');
-      }
-    });
-
-    socket.on('mark_read', async (chatId) => {
+    socket.on('mark_read', async chatId => {
       try {
         await Message.updateMany(
           { chat: chatId, sender: { $ne: socket.userId }, read: false },
-          { $set: { read: true } }
-        );
-        io.to(chatId).emit('messages_read', { chatId, userId: socket.userId });
-      } catch (err) {
-        socket.emit('error', 'Failed to mark messages as read');
-      }
-    });
+          { read: true }
+        )
+        io.to(chatId).emit('messages_read', { chatId, userId: socket.userId })
+      } catch (err) { console.error(err) }
+    })
 
-    socket.on('typing', ({ chatId, isTyping }) => {
-      socket.to(chatId).emit('typing', { userId: socket.userId, isTyping });
-    });
+    socket.on('create_milestone', async ({ chatId, milestoneData }) => {
+      try {
+        const chat = await Chat.findById(chatId)
+        if (!chat || !chat.participants.includes(socket.userId)) return
+        const milestone = await new Milestone({ ...milestoneData, chat: chatId, createdBy: socket.userId }).save()
+        io.to(chatId).emit('milestone_created', { chatId, milestone })
+      } catch (err) { console.error(err) }
+    })
 
-    socket.on('disconnect', () => {
-      console.log(`❌ Chat socket disconnected: ${socket.user.username}`);
-    });
-  });
+    // ===== NOTIFICATIONS =====
+    socket.on('notification_read', async notificationId => {
+      try {
+        await Notification.findOneAndUpdate(
+          { _id: notificationId, recipient: socket.userId },
+          { read: true, readAt: new Date() }
+        )
+        const unreadCount = await Notification.countDocuments({ recipient: socket.userId, read: false })
+        socket.emit('notification_unread_count', unreadCount)
+      } catch (err) { console.error(err) }
+    })
 
-  return io;
+    socket.on('notification_delete', async notificationId => {
+      try {
+        await Notification.findOneAndDelete({ _id: notificationId, recipient: socket.userId })
+        socket.emit('notification_deleted', notificationId)
+      } catch (err) { console.error(err) }
+    })
+
+    socket.on('disconnect', () => console.log(`Socket disconnected: ${socket.user.username}`))
+  })
+
+  return io
 }
 
-module.exports = { initChatSocket };
+module.exports = { initSocket }

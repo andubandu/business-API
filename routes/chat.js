@@ -56,31 +56,50 @@ router.post('/start/:proposalId', authMiddleware, async (req, res) => {
 router.post('/:chatId/message', authMiddleware, async (req, res) => {
   try {
     const { content } = req.body;
-    if (!content) return res.status(400).json({ error: 'Message content is required' });
+    const { chatId } = req.params;
 
-    const chat = await Chat.findById(req.params.chatId);
-    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+    if (!content) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
 
-    if (!chat.participants.includes(req.user._id)) {
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+
+    const isParticipant = chat.participants
+      .map(p => p.toString())
+      .includes(req.user._id.toString());
+
+    if (!isParticipant) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    const message = await Message.create({
-      chat: chat._id,
+    const msg = await Message.create({
+      chat: chatId,
       sender: req.user._id,
       content
     });
 
-    chat.lastMessage = message._id;
+    const populatedMessage = await msg.populate(
+      'sender',
+      'username real_name profile_image'
+    );
+
+    chat.lastMessage = msg._id;
     chat.updatedAt = new Date();
     await chat.save();
 
-    res.status(201).json(message);
-  } catch (error) {
-    console.error('[Send Message Error]:', error);
-    res.status(500).json({ error: 'Server error', details: error.message });
+    const io = req.app.get('io');
+    io.of('/chat').to(chatId).emit('new_message', populatedMessage);
+
+    res.status(201).json(populatedMessage);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 });
+
+
 
 router.get('/:chatId/messages', authMiddleware, async (req, res) => {
   try {
@@ -92,10 +111,13 @@ router.get('/:chatId/messages', authMiddleware, async (req, res) => {
     }
 
     const messages = await Message.find({ chat: chat._id })
-      .populate('sender', 'username profile_image')
+      .populate('sender', 'username profile_image real_name')
       .sort({ sentAt: 1 });
 
-    res.json(messages);
+    res.json({
+      userId: req.user._id, 
+      messages
+    });
   } catch (error) {
     console.error('[Fetch Messages Error]:', error);
     res.status(500).json({ error: 'Server error', details: error.message });
