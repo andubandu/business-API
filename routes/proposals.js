@@ -104,11 +104,20 @@ router.get('/sent', authMiddleware, async (req, res) => {
       .populate('seller', 'username profile_image')
       .sort({ createdAt: -1 });
 
-    res.json(proposals);
+    const proposalsWithChat = await Promise.all(proposals.map(async p => {
+      if (p.status === 'accepted') {
+        const chat = await Chat.findOne({ proposal: p._id });
+        return { ...p.toObject(), chat };
+      }
+      return p;
+    }));
+
+    res.json(proposalsWithChat);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 /**
  * @swagger

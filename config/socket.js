@@ -29,7 +29,19 @@ function authMiddlewareSocket(socket, next) {
 function initSocket(server) {
   if (io) return io
 
-  io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } })
+  io = new Server(server, {
+    cors: {
+      origin: [
+        "https://chat-k4h.vercel.app",
+        "https://k4h.dev",
+        "http://localhost:5173",
+        "https://koders4hire.vercel.app"
+      ],
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
+
   io.use(authMiddlewareSocket)
 
   io.on('connection', async socket => {
