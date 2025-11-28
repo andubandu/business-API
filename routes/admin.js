@@ -23,7 +23,7 @@ router.get('/transactions', authMiddleware, adminMiddleware, async (req, res) =>
     res.json(transactions);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
-  } 
+  }
 });
 
 router.post('/approve/:userID', authMiddleware, adminMiddleware, validateParams(schemas.adminParams), async (req, res) => {

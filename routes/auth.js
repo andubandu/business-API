@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const passport = require('../config/passport.js');
 const { validate, schemas } = require('../middleware/validation.js');
 const User = require('../models/User.js');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 const router = express.Router();
 const { sendVerificationEmail, verifyCode } = require('../utils/sendEmail.js');
 
@@ -299,17 +299,21 @@ router.get('/github', (req, res, next) => {
  */
 
 router.get('/github/callback', (req, res, next) => {
-  passport.authenticate('github', { session: false }, (err, user, info) => {
+  passport.authenticate('github', { session: false }, async (err, user, info) => {
     if (err) return res.status(500).json({ msg: err.message });
-    if (!user) {
-      return res.status(400).json(JSON.parse(info.message));
+    if (!user) return res.status(400).json(JSON.parse(info.message));
+
+    if (user.isNew || user.verification_status !== 'approved') {
+      user.verification_status = 'pending';
+      await user.save();
+      await sendVerificationEmail(user._id);
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
 
-    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+    return res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
   })(req, res, next);
 });
 
@@ -347,17 +351,21 @@ router.get('/google', (req, res, next) => {
  *         description: Redirects to client with JWT token
  */
 router.get('/google/callback', (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user, info) => {
+  passport.authenticate('google', { session: false }, async (err, user, info) => {
     if (err) return res.status(500).json({ msg: err.message });
-    if (!user) {
-      return res.status(400).json(JSON.parse(info.message));
+    if (!user) return res.status(400).json(JSON.parse(info.message));
+
+    if (user.isNew || user.verification_status !== 'approved') {
+      user.verification_status = 'pending';
+      await user.save();
+      await sendVerificationEmail(user._id);
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
 
-    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+    return res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
   })(req, res, next);
 });
 

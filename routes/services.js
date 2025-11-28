@@ -1,5 +1,5 @@
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 const { validate, validateParams, schemas } = require('../middleware/validation.js');
 const Service = require('../models/Service.js');
 const User = require('../models/User.js');
@@ -132,7 +132,7 @@ const {uploadToCloudinary} = require('../utils/cloudinary.js')
  *         description: Server error
  */
 
-router.post('/new', authMiddleware, upload.single('image_url'), validate(schemas.createService), async (req, res) => {
+router.post('/new', authMiddleware, verifiedOnly, upload.single('image_url'), validate(schemas.createService), async (req, res) => {
   try {
     const { title, description, price, currency, category, tags, type } = req.body;
 
@@ -366,7 +366,7 @@ router.get('/:id', validateParams(schemas.serviceParams), async (req, res) => {
  *       404:
  *         description: Service not found
  */
-router.delete('/del/:id', authMiddleware, validateParams(schemas.serviceParams), async (req, res) => {
+router.delete('/del/:id', authMiddleware, verifiedOnly, validateParams(schemas.serviceParams), async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
     if (!service) return res.status(404).json({ error: 'Service not found' });
@@ -426,7 +426,7 @@ router.delete('/del/:id', authMiddleware, validateParams(schemas.serviceParams),
  *       404:
  *         description: Service not found
  */
-router.post('/upd/:id', authMiddleware, validateParams(schemas.serviceParams), validate(schemas.updateService), async (req, res) => {
+router.post('/upd/:id', authMiddleware, verifiedOnly, validateParams(schemas.serviceParams), validate(schemas.updateService), async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
     if (!service) return res.status(404).json({ error: 'Service not found' });
@@ -487,7 +487,7 @@ router.post('/upd/:id', authMiddleware, validateParams(schemas.serviceParams), v
  *       404:
  *         description: Service not found
  */
-router.post('/promote/:id', authMiddleware, validateParams(schemas.serviceParams), async (req, res) => {
+router.post('/promote/:id', authMiddleware, verifiedOnly,validateParams(schemas.serviceParams), async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
     if (!service) return res.status(404).json({ error: 'Service not found' });
@@ -507,7 +507,7 @@ router.post('/promote/:id', authMiddleware, validateParams(schemas.serviceParams
 });
 
 
-router.post('/:id/propose', authMiddleware, async (req, res) => {
+router.post('/:id/propose', authMiddleware, verifiedOnly, async (req, res) => {
   try {
     const service = await Service.findById(req.params.id).populate('owner');
     if (!service) return res.status(404).json({ error: 'Service not found' });

@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const os = require('os');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 const { validate, schemas } = require('../middleware/validation.js');
 const { uploadToCloudinary } = require('../utils/cloudinary.js');
 const { analyzeGitHubProfile, validatePortfolioUrl } = require('../utils/github.js');
@@ -9,9 +9,9 @@ const User = require('../models/User.js');
 
 const router = express.Router();
 
-const upload = multer({ 
+const upload = multer({
   dest: os.tmpdir(),
-  limits: { fileSize: 10 * 1024 * 1024 } 
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 /**
@@ -63,7 +63,7 @@ const upload = multer({
  *       500:
  *         description: Server error
  */
-router.post('/verify', authMiddleware, upload.array('certifications', 5), validate(schemas.verification), async (req, res) => {
+router.post('/verify', authMiddleware, verifiedOnly, upload.array('certifications', 5), validate(schemas.verification), async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -127,7 +127,7 @@ router.post('/verify', authMiddleware, upload.array('certifications', 5), valida
       }
     });
 
-    res.json({ 
+    res.json({
       message: 'Verification request submitted successfully',
       validation_flags: validationFlags
     });

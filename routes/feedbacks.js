@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 const { validateParams, schemas, validate } = require('../middleware/validation.js');
 const User = require('../models/User.js');
 const Feedback = require('../models/Feedback.js');
@@ -123,7 +123,7 @@ router.get('/', async (req, res) => {
  *       500:
  *         description: Failed to create feedback
  */
-router.post('/new', authMiddleware, validate(schemas.feedback), async (req, res) => {
+router.post('/new', authMiddleware, verifiedOnly, validate(schemas.feedback), async (req, res) => {
   try {
     const { content, rating } = req.body;
     const feedback = new Feedback({
@@ -198,7 +198,7 @@ router.get('/:id', authMiddleware, validateParams(schemas.serviceParams), async 
   }
 });
 
-router.delete('/:id', authMiddleware, validateParams(schemas.serviceParams), async (req, res) => {
+router.delete('/:id', authMiddleware, verifiedOnly, validateParams(schemas.serviceParams), async (req, res) => {
   try {
     const feedback = await Feedback.findByIdAndDelete(req.params.id);
     if (!feedback) {

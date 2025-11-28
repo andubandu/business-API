@@ -37,4 +37,17 @@ const adminMiddleware = (req, res, next) => {
   res.status(403).json({ error: 'Admin access required' });
 };
 
-module.exports = { authMiddleware, adminMiddleware };
+async function verifiedOnly(req, res, next) {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.verification_status !== 'approved') {
+      return res.status(403).json({ error: 'Account not verified.' });
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+}
+
+module.exports = { authMiddleware, adminMiddleware, verifiedOnly };

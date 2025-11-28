@@ -4,14 +4,14 @@ const Rating = require('../models/Rating.js');
 const User = require('../models/User.js');
 const Service = require('../models/Service.js');
 const { schemas, validate, validateParams } = require('../middleware/validation.js');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 
 /**
  * @swagger
  * tags:
  *   - name: Ratings
  *     description: |
- *       Manage user and service ratings.  
+ *       Manage user and service ratings.
  *       **Note:** Users cannot rate themselves or their own services.
  */
 
@@ -73,7 +73,7 @@ const { authMiddleware } = require('../middleware/auth.js');
  */
 router.post(
   '/',
-  authMiddleware,
+  authMiddleware, verifiedOnly,
   validate(schemas.createRating),
   async (req, res) => {
     try {

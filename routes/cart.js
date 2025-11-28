@@ -1,7 +1,7 @@
 const express = require('express');
 const Cart = require('../models/Cart.js');
 const Service = require('../models/Service.js');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 
 const router = express.Router();
 

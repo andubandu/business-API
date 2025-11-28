@@ -21,4 +21,4 @@ async function uploadToCloudinary(filePath) {
   }
 }
 
-module.exports = { uploadToCloudinary };
+module.exports = { uploadToCloudinary };  

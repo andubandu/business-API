@@ -1,5 +1,5 @@
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth.js');
+const { authMiddleware, verifiedOnly } = require('../middleware/auth.js');
 const Proposal = require('../models/Proposal.js');
 const Service = require('../models/Service.js');
 const router = express.Router();
@@ -47,7 +47,7 @@ const Chat = require('../models/Chat.js');
  *       404:
  *         description: Service not found
  */
-router.post('/:serviceId/new', authMiddleware, async (req, res) => {
+router.post('/:serviceId/new', authMiddleware, verifiedOnly, async (req, res) => {
   try {
     const { message, price } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
@@ -204,7 +204,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
  *       200:
  *         description: Proposal accepted
  */
-router.post('/:id/accept', authMiddleware, async (req, res) => {
+router.post('/:id/accept', authMiddleware, verifiedOnly, async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.id);
     if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
@@ -263,7 +263,7 @@ router.post('/:id/accept', authMiddleware, async (req, res) => {
  *       200:
  *         description: Proposal rejected
  */
-router.post('/:id/reject', authMiddleware, async (req, res) => {
+router.post('/:id/reject', authMiddleware, verifiedOnly, async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.id);
     if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
@@ -303,7 +303,7 @@ router.post('/:id/reject', authMiddleware, async (req, res) => {
  *       200:
  *         description: Proposal deleted
  */
-router.delete('/:id/delete', authMiddleware, async (req, res) => {
+router.delete('/:id/delete', authMiddleware, verifiedOnly, async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.id);
     if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
