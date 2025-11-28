@@ -1,14 +1,6 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 const User = require('../models/User');
 require('dotenv').config();
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GOOGLE_EMAIL,
-    pass: process.env.GOOGLE_PASSPHRASE
-  }
-});
 
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -17,35 +9,20 @@ function generateVerificationCode() {
 async function sendVerificationEmail(userId) {
   const user = await User.findById(userId);
   if (!user) throw new Error('User not found');
-
   if (user.role === 'admin') return;
 
   const code = generateVerificationCode();
   const expires = new Date(Date.now() + 15 * 60 * 1000);
+
   user.verification_code = code;
   user.verification_expires = expires;
   user.verification_status = 'pending';
   await user.save();
 
-  const htmlContent = `
-  <div style="font-family: Arial, sans-serif; background-color: #FFFFFF; padding: 30px; border-radius: 10px;">
-    <h2 style="color: #4B0082;">Verify Your Email</h2>
-    <p style="color: #6F42C1;">Hello <b>${user.real_name}</b>,</p>
-    <p style="color: #000000;">Please use the following verification code to complete your registration:</p>
-    <div style="background-color: #FFC107; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; border-radius: 5px; color: #4B0082;">
-      ${code}
-    </div>
-    <p style="color: #000000; margin-top: 20px;">This code expires in 15 minutes.</p>
-    <p style="color: #6F42C1;">Thank you for joining our platform!</p>
-  </div>
-  `;
-
-  await transporter.sendMail({
-    from: `"KODERS4HIRE" <${process.env.GOOGLE_EMAIL}>`,
-    to: user.email,
-    subject: 'Your Verification Code',
-    text: `Hello ${user.real_name}, your verification code is: ${code} (expires in 15 minutes)`,
-    html: htmlContent
+  await axios.post(`${process.env.EMAIL_SERVICE_URL}/send-verification`, {
+    email: user.email,
+    name: user.real_name,
+    code
   });
 }
 
@@ -53,21 +30,9 @@ async function sendThankYouEmail(userId) {
   const user = await User.findById(userId);
   if (!user) throw new Error('User not found');
 
-  const htmlContent = `
-  <div style="font-family: Arial, sans-serif; background-color: #FFFFFF; padding: 30px; border-radius: 10px;">
-    <h2 style="color: #4B0082;">Thank You for Verifying!</h2>
-    <p style="color: #6F42C1;">Hello <b>${user.real_name}</b>,</p>
-    <p style="color: #000000;">Your email has been successfully verified. You can now fully access your account.</p>
-    <p style="color: #6F42C1;">Welcome aboard!</p>
-  </div>
-  `;
-
-  await transporter.sendMail({
-    from: `"KODERS4HIRE" <${process.env.GOOGLE_EMAIL}>`,
-    to: user.email,
-    subject: 'Email Verified Successfully',
-    text: `Hello ${user.real_name}, your email has been successfully verified.`,
-    html: htmlContent
+  await axios.post(`${process.env.EMAIL_SERVICE_URL}/send-welcome`, {
+    email: user.email,
+    name: user.real_name
   });
 }
 
