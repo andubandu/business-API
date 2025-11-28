@@ -17,6 +17,7 @@ const serviceSchema = new mongoose.Schema({
     enum: ['request', 'offering'],
     required: true
   },
+image_url: { type: String, default: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Placeholder_view_vector.svg/330px-Placeholder_view_vector.svg.png' },
   promoted: { type: Boolean, default: false },
   promoted_at: { type: Date },
   averageRating: { type: Number, default: 0 },

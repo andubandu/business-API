@@ -5,7 +5,13 @@ const Service = require('../models/Service.js');
 const User = require('../models/User.js');
 const Proposal = require('../models/Proposal.js');
 const router = express.Router();
-
+const multer=require('multer')
+const os = require('os')
+const upload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+const {uploadToCloudinary} = require('../utils/cloudinary.js')
 /**
  * @swagger
  * tags:
@@ -14,7 +20,7 @@ const router = express.Router();
  *   x-notes:
  *     - Offering: Requires user to be verified and have a connected PayPal account.
  *     - Request: Do not include price or currency fields.
- *     - Any type: 
+ *     - Any type:
  *         - Title must be at least 5 characters long.
  *         - Description must be at least 20 characters long.
  */
@@ -82,14 +88,11 @@ const router = express.Router();
  *     security:
  *       - BearerAuth: []
  *     description: >
- *       Create a service. Notes:
- *       - Offering: Requires the user to be verified and have a connected PayPal account.
- *       - Request: Do not include price or currency fields.
- *       - Any type: Title must be at least 5 characters long. Description must be at least 20 characters long.
+ *       Create a service.
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -115,6 +118,9 @@ const router = express.Router();
  *                 type: array
  *                 items:
  *                   type: string
+ *               image_url:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Service created successfully
@@ -125,7 +131,8 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.post('/new', authMiddleware, validate(schemas.createService), async (req, res) => {
+
+router.post('/new', authMiddleware, upload.single('image_url'), validate(schemas.createService), async (req, res) => {
   try {
     const { title, description, price, currency, category, tags, type } = req.body;
 
@@ -134,14 +141,6 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
     }
 
     if (type === 'offering') {
-      // const user = await User.findById(req.user._id);
-      // if (!user?.paypal_account?.connected) {
-      //   return res.status(403).json({
-      //     error: 'PayPal account required',
-      //     message: 'Connect PayPal to receive payments.'
-      //   });
-      // } commented as we use sandbox for now
-      console.log('hi!')
       if (!price || !currency) {
         return res.status(400).json({ error: 'Price and currency are required for offerings' });
       }
@@ -157,9 +156,14 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
       price: type === 'offering' ? parseFloat(price) : 0,
       currency: type === 'offering' ? currency.toUpperCase() : 'USD'
     };
+    if (req.file) {
+      const uploadedUrl = await uploadToCloudinary(req.file.path);
+      serviceData.image_url = uploadedUrl;
+    }
 
     const service = new Service(serviceData);
     await service.save();
+
     res.status(201).json(service);
 
   } catch (error) {
@@ -186,8 +190,8 @@ router.post('/new', authMiddleware, validate(schemas.createService), async (req,
 
 router.get('/my', authMiddleware, async (req, res) => {
   try {
-    const services = await Service.find({ 
-      $or: [{ owner: req.user._id }, { author: req.user._id }] 
+    const services = await Service.find({
+      $or: [{ owner: req.user._id }, { author: req.user._id }]
     });
     res.json(services);
   } catch (err) {

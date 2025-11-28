@@ -7,6 +7,7 @@ const { validate, schemas } = require('../middleware/validation.js');
 const User = require('../models/User.js');
 const { authMiddleware } = require('../middleware/auth.js');
 const router = express.Router();
+const { sendVerificationEmail, verifyCode } = require('../utils/sendEmail.js');
 
 /**
  * @swagger
@@ -82,15 +83,67 @@ router.post('/signup', validate(schemas.signup), async (req, res) => {
     const user = new User({ real_name, username, email, password: hashedPassword, user_type });
     await user.save();
 
+    await sendVerificationEmail(user._id);
+
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    res.status(201).json({ message: 'User created successfully', token, user: userResponse });
+    res.status(201).json({
+      message: 'User created successfully. Verification code sent to email.',
+      token,
+      user: userResponse
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+/**
+ * @swagger
+ * /auth/verify:
+ *   post:
+ *     summary: Verify user's email with code
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - code
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *             example:
+ *               userId: "650b8e1f6c8e123456789abc"
+ *               code: "123456"
+ *     responses:
+ *       200:
+ *         description: Verification successful
+ *       400:
+ *         description: Invalid or expired code
+ */
+router.post('/verify', async (req, res) => {
+  try {
+    const { userId, code } = req.body;
+    const result = await verifyCode(userId, code);
+
+    if (!result.success) return res.status(400).json({ error: result.message });
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 /**
  * @swagger

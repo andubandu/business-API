@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema({
     enum: ['none', 'pending', 'approved', 'rejected'],
     default: 'none'
   },
+  verification_code: { type: String, default: null },
+  verification_expires: { type: Date, default: null },
   requested_role: String,
   verification_data: {
     github_profile: String,
