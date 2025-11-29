@@ -8,7 +8,7 @@ const http = require('http')
 const { initSocket } = require('./config/socket')
 const setupSwagger = require('./config/swagger.js')
 const Cart = require('./models/Cart.js')
-
+const path = require('path')
 const app = express()
 const server = http.createServer(app)
 
@@ -53,7 +53,9 @@ app.use('/rating', require('./routes/ratings'))
 app.use('/feedback', require('./routes/feedbacks'))
 app.use('/proposals', require('./routes/proposals'))
 app.use('/chat', require('./routes/chat'))
-
+app.get('/favicon', (req, res) => {
+  res.sendFile(path.join(__dirname, 'download-4.png'))
+})
 app.get('/', (req, res) => res.redirect('/api-docs'))
 app.get('/inbox', (req, res) => res.render('inbox'))
 
