@@ -250,12 +250,16 @@ router.get('/my', authMiddleware, async (req, res) => {
 router.get('/browse', async (req, res) => {
   try {
     const { type, category, minPrice, maxPrice, tags } = req.query;
-    const filter = { type };
 
+    const filter = {};
+
+    if (type) filter.type = type;
     if (category) filter.category = category;
+
     if (minPrice || maxPrice) filter.price = {};
     if (minPrice) filter.price.$gte = parseFloat(minPrice);
     if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+
     if (tags) filter.tags = { $all: tags.split(',') };
 
     const services = await Service.find(filter)
