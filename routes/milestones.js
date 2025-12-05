@@ -100,6 +100,24 @@ router.post('/:milestoneId/disagree', authMiddleware, verifiedOnly, async (req, 
   }
 });
 
+router.get('/:chatId', authMiddleware, verifiedOnly, async (req,res) => {
+ try {
+    const { chatId } = req.params
+
+    const chat = await Chat.findById(chatId).populate('milestones')
+    if (!chat) return res.status(404).json({ error: 'Chat not found' })
+
+    const userId = req.user._id.toString()
+    if (!chat.participants.map(p => p.toString()).includes(userId)) {
+      return res.status(403).json({ error: 'Not authorized' })
+    }
+
+    res.json(chat.milestones)
+  } catch (err) {
+    console.error('[Milestones Fetch Error]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 
 module.exports = router;
