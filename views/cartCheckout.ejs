@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cart Checkout</title>
+
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= paypal_client_id %>&currency=USD&intent=capture" data-sdk-integration-source="button-factory"></script>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <style>
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;margin:0;background:#f7fafc;color:#111}
+    .container{max-width:1100px;margin:40px auto;padding:0 20px}
+    .grid{display:flex;gap:24px;flex-wrap:wrap}
+    .col{flex:1 1 60%}
+    .side{flex:0 0 360px}
+    .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 6px 18px rgba(10,10,10,.06)}
+    .item{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #eee}
+    .muted{color:#6b7280}
+    .btn{display:inline-block;padding:10px 14px;border-radius:8px;text-decoration:none;cursor:pointer}
+    .btn-primary{background:#111827;color:#fff}
+    .btn-muted{background:#e5e7eb;color:#111}
+    .right{text-align:right}
+    .small{font-size:13px;color:#6b7280}
+    .mt{margin-top:16px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="text-align:center;margin-bottom:28px;font-size:28px">Checkout</h1>
+
+    <div class="grid">
+      <div class="col">
+        <div class="card">
+          <h2 style="margin:0 0 12px 0;font-size:18px">Your Cart</h2>
+
+          <% if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) { %>
+            <p class="muted">Your cart is empty.</p>
+          <% } else { %>
+            <% let subtotal = 0; %>
+            <% cart.items.forEach(item => { 
+                 const price = Number(item.product?.price || 0);
+                 const qty = Number(item.quantity || 1);
+                 subtotal += price * qty;
+            %>
+              <div class="item">
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:600"><%= item.product?.title || 'Untitled' %></div>
+                  <div class="small muted"><%= (item.product?.description || '').slice(0,160) %></div>
+                </div>
+                <div class="right" style="min-width:120px">
+                  <div>$<%= (price * qty).toFixed(2) %></div>
+                  <div class="small muted">Qty: <%= qty %></div>
+                </div>
+              </div>
+            <% }) %>
+            <div class="mt small muted">Items: <%= cart.items.length %></div>
+          <% } %>
+
+        </div>
+      </div>
+
+      <% if (cart && Array.isArray(cart.items) && cart.items.length > 0) { %>
+        <div class="side">
+          <div class="card">
+            <h3 style="margin:0 0 12px 0;font-size:18px">Order Summary</h3>
+
+            <% if (typeof subtotal === 'undefined') { subtotal = (cart.items || []).reduce((s,i)=> s + ((i.product?.price||0) * (i.quantity||1)), 0); } %>
+            <% const platformFee = +(subtotal * 0.10).toFixed(2); %>
+            <% const total = +(subtotal + platformFee).toFixed(2); %>
+
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <div class="muted">Subtotal</div>
+              <div>$<%= subtotal.toFixed(2) %></div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <div class="muted">Platform fee (10%)</div>
+              <div>$<%= platformFee.toFixed(2) %></div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;font-weight:700;font-size:18px;margin-bottom:14px">
+              <div>Total</div>
+              <div>$<%= total.toFixed(2) %></div>
+            </div>
+
+            <div id="paypal-button-container" style="margin-bottom:12px"></div>
+
+            <a href="/services" class="btn btn-muted mt" style="width:100%;text-align:center;margin-top:12px;display:block">Continue shopping</a>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const serverToken = '<%= (typeof token !== "undefined" && token) ? token : "" %>';
+      const CART_ID = '<%= cart?._id || "" %>';
+
+      const subtotal = <%= (typeof subtotal !== 'undefined' ? subtotal : 0) %>;
+      const platformFee = +(subtotal * 0.10).toFixed(2);
+      const total = +(subtotal + platformFee).toFixed(2);
+
+      function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? decodeURIComponent(match.pop()) : '';
+      }
+
+      function getQuery(name){
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      }
+
+      if (typeof paypal === 'undefined') {
+        console.error('PayPal SDK not loaded. Check client id and network.');
+        return;
+      }
+
+      paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+
+        createOrder: function (data, actions) {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: total.toFixed(2) } }],
+            application_context: { shipping_preference: 'NO_SHIPPING' }
+          });
+        },
+
+        onApprove: function (data, actions) {
+          return actions.order.capture().then(function (details) {
+            fetch('/payments/token-used', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getCookie('token') },
+              body: JSON.stringify({ token: getQuery('token'), cartID: CART_ID })
+            }).catch(err => console.error('token-used fetch error', err));
+
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            setTimeout(() => {
+              window.location.href = '/payments/thank-you';
+            }, 0);
+          });
+        },
+
+        onError: function (err) {
+          console.error('PayPal Buttons error', err);
+          alert('Payment failed. See console for details.');
+        },
+
+        onCancel: function () {
+          alert('Payment cancelled.');
+        }
+
+      }).render('#paypal-button-container');
+    })();
+  </script>
+</body>
+</html>
