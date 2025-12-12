@@ -18,6 +18,24 @@ function roundTwo(amount) {
   return Math.round(amount * 100) / 100;
 }
 
+router.patch('/:id/complete', authMiddleware, async (req, res) => {
+  try {
+    const milestone = await Milestone.findById(req.params.id);
+    if (!milestone) return res.status(404).json({ error: "Milestone not found" });
+
+    if (req.user.userId !== milestone.seller.toString()) {
+      return res.status(403).json({ error: "Only the seller can mark this as complete" });
+    }
+
+    milestone.status = 'completed';
+    await milestone.save();
+
+    res.json({ success: true, milestone });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/:chatId/new', authMiddleware, verifiedOnly, async (req, res) => {
   try {
     const { chatId } = req.params;
