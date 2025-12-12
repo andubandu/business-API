@@ -70,44 +70,92 @@ router.post('/milestones/:id/pay', authMiddleware, verifiedOnly, async (req, res
 });
 
 router.post('/milestones/:id/create-order', authMiddleware, verifiedOnly, async (req, res) => {
+
   try {
+
     const milestone = await Milestone.findById(req.params.id);
+
     if (!milestone) return res.status(404).json({ error: "Milestone not found" });
 
-    const { getPayPalAccessToken } = require('../utils/paypal');
-    const tokenData = await getPayPalAccessToken();
-    const accessToken = tokenData.access_token;
 
-    const orderRes = await axios.post(`${process.env.PAYPAL_BASE_URL}/v2/checkout/orders`, {
+    let accessToken;
+
+    try {
+
+      const tokenData = await getPayPalAccessToken();
+
+      accessToken = tokenData.access_token;
+
+    } catch (tokenErr) {
+
+      console.error("TOKEN GENERATION ERROR:", tokenErr.message);
+
+      return res.status(500).json({ error: "Could not generate PayPal Access Token", details: tokenErr.message });
+
+    }
+
+
+    const paypalUrl = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
+
+
+
+    const orderRes = await axios.post(`${paypalUrl}/v2/checkout/orders`, {
+
       intent: "CAPTURE",
+
       purchase_units: [{
+
         amount: {
+
           currency_code: "USD",
+
           value: milestone.price.toFixed(2)
+
         }
+
       }],
+
       application_context: {
+
         brand_name: "K4H",
+
         user_action: "PAY_NOW",
+
         return_url: `https://chat-k4h.vercel.app/dashboard?payment=success&milestoneId=${milestone._id}`,
+
         cancel_url: `https://chat-k4h.vercel.app/chat/${milestone.chat}?payment=cancelled`
+
       }
+
     }, {
+
       headers: {
+
         Authorization: `Bearer ${accessToken}`,
+
         "Content-Type": "application/json"
+
       }
+
     });
 
+
     const approveLink = orderRes.data.links.find(link => link.rel === 'approve');
+
     res.json({ redirectUrl: approveLink.href });
 
-  } catch (error) {
-    console.error("PAYPAL ERROR:", error.response?.data || error.message);
-    res.status(500).json({ error: "Order failed", details: error.response?.data });
-  }
-});
 
+  } catch (error) {
+
+    const errorMessage = error.response?.data || error.message;
+
+    console.error("PAYPAL ORDER ERROR:", errorMessage);
+
+    res.status(500).json({ error: "Order failed", details: errorMessage });
+
+  }
+
+});
 /**
  * Route: POST /payments/milestones/:id/complete
  * Action: Seller marks work as submitted
