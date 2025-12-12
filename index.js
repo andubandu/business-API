@@ -23,7 +23,7 @@ app.use(
     origin: [
       'https://chat-k4h.vercel.app',
       'https://koders4hire.vercel.app',
-      'https://k4h.dev'
+      'https://k4h.dev', 'http://localhost:5173',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
