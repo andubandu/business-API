@@ -18,6 +18,24 @@ function roundTwo(amount) {
   return Math.round(amount * 100) / 100;
 }
 
+router.get('/:chatId', authMiddleware, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    const milestones = await Milestone.find({ chatId })
+      .sort({ createdAt: 1 });
+
+    if (!milestones || milestones.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.json(milestones);
+  } catch (err) {
+    console.error("Error fetching milestones:", err);
+    res.status(500).json({ error: "Server error fetching milestones" });
+  }
+});
+
 router.patch('/:id/complete', authMiddleware, async (req, res) => {
   try {
     const milestone = await Milestone.findById(req.params.id);
