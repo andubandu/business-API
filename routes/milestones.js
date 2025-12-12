@@ -22,10 +22,10 @@ router.get('/:chatId', authMiddleware, async (req, res) => {
   try {
     const { chatId } = req.params;
 
-    const milestones = await Milestone.find({ chatId })
+    const milestones = await Milestone.find({ chat: chatId })
       .sort({ createdAt: 1 });
 
-    if (!milestones || milestones.length === 0) {
+    if (!milestones) {
       return res.status(200).json([]);
     }
 
