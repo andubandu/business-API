@@ -1,104 +1,129 @@
 require('dotenv').config();
 const axios = require('axios');
-const paypal = require('@paypal/checkout-server-sdk')
-const client = new paypal.core.PayPalHttpClient(
-  new paypal.core.LiveEnvironment(
-    process.env.PAYPAL_CLIENT_ID,
-    process.env.PAYPAL_CLIENT_SECRET
-  )
-)
+
+const PAYPAL_API = process.env.PAYPAL_BASE_URL;
 
 async function getPayPalAccessToken() {
+  const auth = Buffer.from(
+    `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
+  ).toString('base64');
+
   try {
-    const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
-
-    const res = await fetch(`${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Failed to get token: ${errText}`);
-    }
-
-    const data = await res.json();
-    // console.log('Access token:', data.access_token);
-    return data.access_token;
-  } catch (err) {
-    console.error('Error fetching PayPal token:', err.message);
+    const response = await axios.post(
+      `${PAYPAL_API}/v1/oauth2/token`,
+      'grant_type=client_credentials',
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error getting PayPal Token:', error.response?.data || error.message);
+    throw new Error('Could not generate PayPal Access Token');
   }
 }
 
-async function processRefundToBuyer(email, amount, currency, note) {
-  const request = new paypal.payments.CapturesRefundRequest(email)
-  request.requestBody({
-    amount: { value: amount.toFixed(2), currency_code: currency },
-    note_to_payer: note
-  })
-  const response = await client.execute(request)
-  return response.result
+async function capturePayment(orderId) {
+  const accessToken = await getPayPalAccessToken();
+
+  try {
+    const response = await axios.post(
+      `${PAYPAL_API}/v2/checkout/orders/${orderId}/capture`,
+      {},
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error capturing payment:', error.response?.data || error.message);
+    throw new Error('Payment capture failed');
+  }
 }
 
+async function processPayoutToSeller(sellerEmail, amount, currency = 'USD', note, transactionId) {
+  const accessToken = await getPayPalAccessToken();
+  const roundedAmount = (Math.round(amount * 100) / 100).toFixed(2);
 
-async function processPayoutToSeller(sellerEmail, amount, currency, note, transactionId) {
-  try {
-    const accessToken = await getPayPalAccessToken();
-
-    const roundedAmount = Math.round(amount * 100) / 100;
-
-    const payoutData = {
-      sender_batch_header: {
-        sender_batch_id: `batch_${transactionId}_${Date.now()}`,
-        email_subject: "You have received a payment from Developer Marketplace",
-        email_message: "You have received a payment for your service. Thank you for using our platform!"
+  const payoutData = {
+    sender_batch_header: {
+      sender_batch_id: `batch_${transactionId}_${Date.now()}`,
+      email_subject: 'You have a payment from Developer Marketplace',
+      email_message: 'Payment received for your completed milestone.',
+    },
+    items: [
+      {
+        recipient_type: 'EMAIL',
+        amount: {
+          value: roundedAmount,
+          currency: currency,
+        },
+        receiver: sellerEmail,
+        note: note,
+        sender_item_id: transactionId,
       },
-      items: [
-        {
-          recipient_type: "EMAIL",
-          amount: {
-            value: roundedAmount.toFixed(2),
-            currency: currency
-          },
-          receiver: sellerEmail,
-          note: note,
-          sender_item_id: transactionId
-        }
-      ]
-    };
+    ],
+  };
 
-    const response = await axios.post(`${process.env.PAYPAL_BASE_URL}/v1/payments/payouts`,
+  try {
+    const response = await axios.post(
+      `${PAYPAL_API}/v1/payments/payouts`,
       payoutData,
       {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
       }
     );
-
     return response.data;
   } catch (error) {
+    console.error('Payout failed:', error.response?.data || error.message);
     throw new Error(`PayPal payout failed: ${error.response?.data?.message || error.message}`);
   }
 }
 
-async function verifyPayPalAccount(email) {
+/**
+ * Initiates a Refund to the original buyer capture.
+ * @param {string} captureId - The PayPal Capture ID stored during the /pay route.
+ */
+async function processRefundToBuyer(captureId, amount, currency = 'USD', note) {
+  const accessToken = await getPayPalAccessToken();
+  const roundedAmount = (Math.round(amount * 100) / 100).toFixed(2);
+
   try {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    const response = await axios.post(
+      `${PAYPAL_API}/v2/payments/captures/${captureId}/refund`,
+      {
+        amount: {
+          value: roundedAmount,
+          currency_code: currency
+        },
+        note_to_payer: note
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    return response.data;
   } catch (error) {
-    return false;
+    console.error('Refund failed:', error.response?.data || error.message);
+    throw new Error('Refund failed');
   }
 }
 
 module.exports = {
-  getPayPalAccessToken,
+  capturePayment,
   processPayoutToSeller,
-  verifyPayPalAccount,
-  processRefundToBuyer
+  processRefundToBuyer,
+  getPayPalAccessToken
 };

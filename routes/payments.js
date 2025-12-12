@@ -5,148 +5,241 @@ const Proposal = require('../models/Proposal');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const Chat = require('../models/Chat');
-const { processPayoutToSeller } = require('../utils/paypal');
+const axios = require('axios');
+
 const router = express.Router();
 
-function roundTwo(amount) {
-  return Math.round(amount * 100) / 100;
-}
-
+/**
+ * Route: POST /payments/milestones/:id/pay
+ * Action: Captures PayPal order, creates Transaction record, updates Milestone
+ */
 router.post('/milestones/:id/pay', authMiddleware, verifiedOnly, async (req, res) => {
-  try {
-    const milestone = await Milestone.findById(req.params.id).populate('proposal');
-    if (!milestone) return res.status(404).json({ error: 'Milestone not found' });
-
-    const proposal = milestone.proposal;
-    if (proposal.buyer.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Only buyer can pay milestone' });
-
-    if (milestone.buyerPaid) return res.status(400).json({ error: 'Milestone already paid' });
-
-    const seller = await User.findById(proposal.seller);
-    if (!seller.paypal_account.connected)
-      return res.status(400).json({ error: 'Seller must have PayPal connected' });
-
-    milestone.buyerPaid = true;
-    milestone.status = 'in_progress';
-    await milestone.save();
-
-    const platformFee = roundTwo(milestone.price * 0.1);
-    const sellerEarnings = roundTwo(milestone.price * 0.9);
-
-    const transaction = await Transaction.create({
-      proposal: proposal._id,
-      milestone: milestone._id,
-      buyerID: req.user._id,
-      sellerID: seller._id,
-      amountPaid: milestone.price,
-      platformFee,
-      sellerEarnings,
-      currency: 'USD'
-    });
-
-    res.json({ milestone, transaction });
-  } catch (err) {
-    console.error('[Milestone Pay Error]:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
-  }
-});
-
-router.post('/milestones/:id/complete', authMiddleware, verifiedOnly, async (req, res) => {
-  try {
-    const milestone = await Milestone.findById(req.params.id).populate('proposal');
-    if (!milestone) return res.status(404).json({ error: 'Milestone not found' });
-
-    const proposal = milestone.proposal;
-    if (proposal.seller.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Only seller can complete milestone' });
-
-    if (!milestone.buyerPaid) return res.status(400).json({ error: 'Milestone not paid yet' });
-    if (milestone.status !== 'in_progress') return res.status(400).json({ error: 'Milestone not in progress' });
-
-    milestone.status = 'completed';
-    await milestone.save();
-
-    res.json({ milestone });
-  } catch (err) {
-    console.error('[Milestone Complete Error]:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
-  }
-});
-router.post('/milestones/:id/confirm', authMiddleware, verifiedOnly, async (req, res) => {
-  try {
-    const milestone = await Milestone.findById(req.params.id).populate('proposal');
-    if (!milestone) return res.status(404).json({ error: 'Milestone not found' });
-
-    const proposal = milestone.proposal;
-    if (proposal.buyer.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Only buyer can confirm milestone' });
-
-    if (milestone.status !== 'completed') return res.status(400).json({ error: 'Milestone not completed yet' });
-
-    const seller = await User.findById(proposal.seller);
+    const { id } = req.params;
+    const { paypalOrderId } = req.body;
 
     try {
-      const payout = await processPayoutToSeller(seller.paypal_account.email, milestone.price * 0.9, 'USD', `Payment for milestone ${milestone.title}`);
+        const milestone = await Milestone.findById(id).populate({
+            path: 'proposal',
+            populate: { path: 'seller', model: 'User' }
+        });
 
-      milestone.status = 'paid';
-      await milestone.save();
+        if (!milestone) return res.status(404).json({ error: "Milestone not found" });
 
-      const transaction = await Transaction.findOne({ milestone: milestone._id });
-      transaction.payoutStatus = 'sent';
-      transaction.payoutID = payout.batch_id;
-      transaction.completedAt = new Date();
-      await transaction.save();
+        const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+        const tokenRes = await axios.post(`${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`, 'grant_type=client_credentials', {
+            headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const accessToken = tokenRes.data.access_token;
 
-      const chat = await Chat.findById(milestone.chat);
-      if (chat.activeMilestone?.toString() === milestone._id.toString()) {
-        chat.activeMilestone = null;
-        await chat.save();
-      }
+        const captureRes = await axios.post(
+            `${process.env.PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`,
+            {},
+            { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+        );
 
-      res.json({ milestone, transaction });
-    } catch (payoutErr) {
-      const transaction = await Transaction.findOne({ milestone: milestone._id });
-      transaction.payoutStatus = 'failed';
-      await transaction.save();
+        if (captureRes.data.status === 'COMPLETED') {
+            const captureDetails = captureRes.data.purchase_units[0].payments.captures[0];
+            const breakdown = captureDetails.seller_receivable_breakdown;
 
-      res.status(500).json({ error: 'Payout failed', details: payoutErr.message });
+            const transaction = await Transaction.create({
+                proposal: milestone.proposal._id,
+                milestone: milestone._id,
+                buyerID: req.user._id,
+                sellerID: milestone.proposal.seller._id,
+                amountPaid: parseFloat(breakdown.gross_amount.value),
+                platformFee: parseFloat(breakdown.paypal_fee.value),
+                sellerEarnings: parseFloat(breakdown.net_amount.value),
+                currency: breakdown.gross_amount.currency_code,
+                paymentID: captureDetails.id,
+                payoutStatus: 'pending'
+            });
+
+            milestone.status = 'paid';
+            milestone.buyerPaid = true;
+            milestone.transaction = transaction._id;
+            await milestone.save();
+
+            return res.json({ success: true, milestone });
+        } else {
+            return res.status(400).json({ error: "Payment not completed", details: captureRes.data });
+        }
+    } catch (error) {
+        console.error("Capture Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "Capture failed", details: error.response?.data });
     }
-  } catch (err) {
-    console.error('[Milestone Confirm Error]:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+});
+
+router.post('/milestones/:id/create-order', authMiddleware, verifiedOnly, async (req, res) => {
+  try {
+    const milestone = await Milestone.findById(req.params.id);
+    if (!milestone) return res.status(404).json({ error: "Milestone not found" });
+
+    const { getPayPalAccessToken } = require('../utils/paypal');
+    const tokenData = await getPayPalAccessToken();
+    const accessToken = tokenData.access_token;
+
+    const orderRes = await axios.post(`${process.env.PAYPAL_BASE_URL}/v2/checkout/orders`, {
+      intent: "CAPTURE",
+      purchase_units: [{
+        amount: {
+          currency_code: "USD",
+          value: milestone.price.toFixed(2)
+        }
+      }],
+      application_context: {
+        brand_name: "K4H",
+        user_action: "PAY_NOW",
+        return_url: `https://chat-k4h.vercel.app/dashboard?payment=success&milestoneId=${milestone._id}`,
+        cancel_url: `https://chat-k4h.vercel.app/chat/${milestone.chat}?payment=cancelled`
+      }
+    }, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      }
+    });
+
+    const approveLink = orderRes.data.links.find(link => link.rel === 'approve');
+    res.json({ redirectUrl: approveLink.href });
+
+  } catch (error) {
+    console.error("PAYPAL ERROR:", error.response?.data || error.message);
+    res.status(500).json({ error: "Order failed", details: error.response?.data });
   }
 });
 
-router.post('/milestones/:id/refund', authMiddleware, verifiedOnly, async (req, res) => {
-  try {
-    const milestone = await Milestone.findById(req.params.id).populate('proposal');
-    if (!milestone) return res.status(404).json({ error: 'Milestone not found' });
+/**
+ * Route: POST /payments/milestones/:id/complete
+ * Action: Seller marks work as submitted
+ */
+router.post('/milestones/:id/complete', authMiddleware, verifiedOnly, async (req, res) => {
+    try {
+        const milestone = await Milestone.findById(req.params.id).populate('proposal');
+        if (!milestone) return res.status(404).json({ error: 'Milestone not found' });
 
-    const proposal = milestone.proposal;
-    if (proposal.buyer.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Only buyer can request refund' });
+        if (milestone.proposal.seller.toString() !== req.user._id.toString())
+            return res.status(403).json({ error: 'Unauthorized' });
 
-    if (milestone.status !== 'in_progress') return res.status(400).json({ error: 'Milestone not in progress or already paid' });
+        if (!milestone.buyerPaid) return res.status(400).json({ error: 'Milestone not funded' });
 
-    milestone.status = 'refunded';
-    await milestone.save();
+        milestone.status = 'completed';
+        await milestone.save();
 
-    const transaction = await Transaction.findOne({ milestone: milestone._id });
-    transaction.payoutStatus = 'refunded';
-    await transaction.save();
-
-    const chat = await Chat.findById(milestone.chat);
-    if (chat.activeMilestone?.toString() === milestone._id.toString()) {
-      chat.activeMilestone = null;
-      await chat.save();
+        res.json({ milestone });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
     }
+});
 
-    res.json({ milestone, transaction });
-  } catch (err) {
-    console.error('[Milestone Refund Error]:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
-  }
+/**
+ * Route: POST /payments/milestones/:id/release
+ * Action: Buyer releases held funds to the Seller
+ */
+// router.post('/milestones/:id/release', authMiddleware, verifiedOnly, async (req, res) => {
+//     const { id } = req.params;
+
+//     try {
+//         const milestone = await Milestone.findById(id).populate({
+//             path: 'proposal',
+//             populate: { path: 'seller', model: 'User' }
+//         }).populate('transaction');
+
+//         if (!milestone) return res.status(404).json({ error: "Milestone not found" });
+//         if (milestone.proposal.buyer.toString() !== req.user._id.toString())
+//             return res.status(403).json({ error: "Unauthorized" });
+//         if (milestone.paidToSeller) return res.status(400).json({ error: "Funds already released" });
+
+//         const seller = milestone.proposal.seller;
+//         if (!seller.paypal_account?.email) return res.status(400).json({ error: "Seller has no PayPal email linked" });
+
+//         const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+//         const tokenRes = await axios.post(`${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`, 'grant_type=client_credentials', {
+//             headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }
+//         });
+//         const accessToken = tokenRes.data.access_token;
+
+//         const payoutResponse = await axios.post(
+//             `${process.env.PAYPAL_BASE_URL}/v1/payments/payouts`,
+//             {
+//                 sender_batch_header: {
+//                     sender_batch_id: `batch_${milestone._id}_${Date.now()}`,
+//                     email_subject: "Payment Received",
+//                 },
+//                 items: [{
+//                     recipient_type: "EMAIL",
+//                     amount: {
+//                         value: milestone.transaction.sellerEarnings.toString(),
+//                         currency: "USD"
+//                     },
+//                     receiver: seller.paypal_account.email,
+//                     note: `Milestone: ${milestone.title}`,
+//                     sender_item_id: milestone._id.toString()
+//                 }]
+//             },
+//             {
+//                 headers: {
+//                     'Authorization': `Bearer ${accessToken}`,
+//                     'Content-Type': 'application/json'
+//                 }
+//             }
+//         );
+
+//         milestone.paidToSeller = true;
+//         milestone.status = 'completed';
+//         await milestone.save();
+
+//         if (milestone.transaction) {
+//             await Transaction.findByIdAndUpdate(milestone.transaction._id, {
+//                 payoutStatus: 'sent',
+//                 payoutID: payoutResponse.data.batch_header.payout_batch_id,
+//                 completedAt: new Date()
+//             });
+//         }
+
+//         await Chat.updateOne({ _id: milestone.chat }, { activeMilestone: null });
+
+//         res.json({ success: true, message: "Funds released to seller" });
+
+//     } catch (error) {
+//         console.error("Payout Error:", error.response?.data || error.message);
+//         res.status(500).json({ error: "Payout failed", details: error.response?.data });
+//     }
+// });
+
+/**
+ * Route: POST /payments/milestones/:id/refund
+ * Action: Refunds the Buyer using the PayPal Capture ID
+ */
+router.post('/milestones/:id/refund', authMiddleware, verifiedOnly, async (req, res) => {
+    try {
+        const milestone = await Milestone.findById(req.params.id).populate('proposal transaction');
+
+        if (!milestone || !milestone.transaction) return res.status(404).json({ error: 'Record not found' });
+        if (milestone.paidToSeller) return res.status(400).json({ error: 'Cannot refund after payout' });
+
+        const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+        const tokenRes = await axios.post(`${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`, 'grant_type=client_credentials', {
+            headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const accessToken = tokenRes.data.access_token;
+
+        await axios.post(
+            `${process.env.PAYPAL_BASE_URL}/v2/payments/captures/${milestone.transaction.paymentID}/refund`,
+            { note_to_payer: "Milestone refund processed by platform" },
+            { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+        );
+B
+        milestone.status = 'refunded';
+        await milestone.save();
+
+        await Transaction.findByIdAndUpdate(milestone.transaction._id, { payoutStatus: 'refunded' });
+        await Chat.updateOne({ _id: milestone.chat }, { activeMilestone: null });
+
+        res.json({ success: true, message: "Refund processed" });
+    } catch (error) {
+        console.error("Refund Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "Refund failed" });
+    }
 });
 
 module.exports = router;

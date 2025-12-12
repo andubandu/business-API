@@ -5,12 +5,22 @@ const transactionSchema = new mongoose.Schema({
   milestone: { type: mongoose.Schema.Types.ObjectId, ref: 'Milestone' },
   buyerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   sellerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+
   amountPaid: { type: Number, required: true },
   platformFee: { type: Number, required: true },
   sellerEarnings: { type: Number, required: true },
   currency: { type: String, default: 'USD' },
-  payoutStatus: { type: String, enum: ['pending', 'sent', 'failed', 'refunded'], default: 'pending' },
+
+  paymentID: { type: String },
+
+  payoutStatus: {
+    type: String,
+    enum: ['pending', 'sent', 'failed', 'refunded'],
+    default: 'pending'
+  },
+
   payoutID: { type: String },
+
   createdAt: { type: Date, default: Date.now },
   completedAt: { type: Date }
 });

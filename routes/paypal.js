@@ -2,7 +2,11 @@ const express = require('express');
 const { authMiddleware } = require('../middleware/auth.js');
 const { validate, schemas } = require('../middleware/validation.js');
 const User = require('../models/User.js');
-
+const { getPayPalAccessToken } = require('../utils/paypal.js');
+const CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+const PAYPAL_API = process.env.PAYPAL_BASE_URL
+const axios = require('axios');
 const router = express.Router();
 
 /**
@@ -10,7 +14,7 @@ const router = express.Router();
  * tags:
  *   - name: PayPal
  *     description: |
- *       Manage developer PayPal accounts (connect, update, disconnect, check status).  
+ *       Manage developer PayPal accounts (connect, update, disconnect, check status).
  *       **Note:** Only approved developers can connect PayPal accounts. Ensure email and merchant ID are correct to receive payouts.
  */
 
@@ -18,6 +22,53 @@ router.get('*', (req, res) => {
   res.json({ message: 'PayPal routes are currently disabled.' });
 });
 
+/**
+ * @swagger
+ * /paypal/generate-token:
+ * post:
+ * summary: Generate a temporary PayPal Access Token (for backend operations)
+ * tags: [PayPal]
+ * description: Used to authorize subsequent PayPal API calls (like creating orders or captures).
+ * responses:
+ * 200:
+ * description: Access token generated successfully
+ * content:
+ * application/json:
+ * schema:
+ * type: object
+ * properties:
+ * message: { type: string }
+ * access-token: { type: string }
+ * expires-in-seconds: { type: number }
+ * 500:
+ * description: Error generating token
+ */
+router.post('/generate-token', async (req, res) => {
+  try {
+    if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+      return res.status(500).json({ error: 'PayPal credentials not configured in environment.' });
+    }
+
+    const tokenData = await getPayPalAccessToken();
+
+    const expiresIn = tokenData.expires_in || 32400;
+    const hours = Math.round(expiresIn / 3600);
+
+    res.json({
+      message: `Link generated successfully! Valid for ${hours} hours`,
+      // "link": tokenData.access_token,
+      "access-token": tokenData.access_token,
+      "expires-in-seconds": expiresIn
+    });
+
+  } catch (error) {
+    console.error('PayPal Token Route Failed:', error.message);
+    res.status(500).json({
+      error: 'Failed to generate access token',
+      details: error.message
+    });
+  }
+});
 /**
  * @swagger
  * /paypal/connect:
@@ -70,11 +121,11 @@ router.get('*', (req, res) => {
 // router.post('/connect', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
 //   try {
 //     const { paypal_email, merchant_id } = req.body;
-    
+
 //     // if (req.user.verification_status !== 'approved') {
-//     //   return res.status(403).json({ 
-//     //     error: 'Access denied', 
-//     //     message: 'Only approved developers can connect PayPal accounts' 
+//     //   return res.status(403).json({
+//     //     error: 'Access denied',
+//     //     message: 'Only approved developers can connect PayPal accounts'
 //     //   });
 //     // }
 
@@ -86,7 +137,7 @@ router.get('*', (req, res) => {
 //       'paypal_account.last_verified': new Date()
 //     });
 
-//     res.json({ 
+//     res.json({
 //       message: 'PayPal account connected successfully',
 //       paypal_email: paypal_email,
 //       merchant_id: merchant_id || 'Not provided'
@@ -136,7 +187,7 @@ router.get('*', (req, res) => {
 // router.get('/status', authMiddleware, async (req, res) => {
 //   try {
 //     const user = await User.findById(req.user._id).select('paypal_account');
-    
+
 //     res.json({
 //       connected: user.paypal_account.connected,
 //       email: user.paypal_account.email,
@@ -197,14 +248,14 @@ router.get('*', (req, res) => {
 // router.patch('/update', authMiddleware, validate(schemas.paypalConnect), async (req, res) => {
 //   try {
 //     const { paypal_email, merchant_id } = req.body;
-    
+
 //     await User.findByIdAndUpdate(req.user._id, {
 //       'paypal_account.email': paypal_email,
 //       'paypal_account.merchant_id': merchant_id || '',
 //       'paypal_account.last_verified': new Date()
 //     });
 
-//     res.json({ 
+//     res.json({
 //       message: 'PayPal account updated successfully',
 //       paypal_email: paypal_email,
 //       merchant_id: merchant_id || 'Not provided'
