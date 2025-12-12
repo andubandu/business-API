@@ -21,9 +21,11 @@ app.enable('trust proxy');
 app.use(
   cors({
     origin: [
-      'https://chat-k4h.vercel.app',
-      'https://koders4hire.vercel.app',
-      'https://k4h.dev', 'http://localhost:5173',
+ 'https://www.chat-k4h.vercel.app',
+  'https://www.koders4hire.vercel.app',
+  'https://k4h.dev',
+  'https://www.k4h.dev',
+  'http://localhost:5173'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
