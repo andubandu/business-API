@@ -11,21 +11,20 @@ const { initSocket } = require('./config/socket');
 const setupSwagger = require('./config/swagger.js');
 
 const app = express();
-const server = http.createServer(app);
-
-const io = initSocket(server);
-app.set('io', io);
-
-app.enable('trust proxy');
-
 app.use(
   cors({
     origin: [
- 'https://www.chat-k4h.vercel.app',
-  'https://www.koders4hire.vercel.app',
-  'https://k4h.dev',
-  'https://www.k4h.dev',
-  'http://localhost:5173'
+        'https://chat-k4h.vercel.app',
+        'https://www.chat-k4h.vercel.app',
+        'https://koders4hire.vercel.app',
+        'https://www.koders4hire.vercel.app',
+        'https://k4h.dev',
+        'https://www.k4h.dev',
+        'http://localhost:5173',
+        'http://k4h.dev',
+        'http://www.k4h.dev',
+        'http://chat-k4h.vercel.app',
+        'http://www.koders4hire.vercel.app',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -41,6 +40,13 @@ app.use(
     ]
   })
 );
+const server = http.createServer(app);
+
+const io = initSocket(server);
+app.set('io', io);
+
+app.enable('trust proxy');
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
