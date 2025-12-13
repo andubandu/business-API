@@ -38,7 +38,7 @@ router.post('/milestones/:id/pay', authMiddleware, verifiedOnly, async (req, res
         if (!milestone) return res.status(404).json({ error: "Milestone not found" });
 
         const captureRes = await axios.post(
-            `${config.baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, // Use dynamic URL
+            `${config.baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`,
             {},
             {
                 headers: {
@@ -142,7 +142,7 @@ router.post('/milestones/:id/create-order', authMiddleware, verifiedOnly, async 
 
         user_action: "PAY_NOW",
 
-        return_url: `https://chat-k4h.vercel.app/dashboard?payment=success&milestoneId=${milestone._id}`,
+        return_url: `https://chat-k4h.vercel.app/result?payment=success&milestoneId=${milestone._id}`,
 
         cancel_url: `https://chat-k4h.vercel.app/chat/${milestone.chat}?payment=cancelled`
 

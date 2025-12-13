@@ -22,8 +22,13 @@ router.get('/:chatId', authMiddleware, async (req, res) => {
   try {
     const { chatId } = req.params;
 
-    const milestones = await Milestone.find({ chat: chatId })
-      .sort({ createdAt: 1 });
+const milestones = await Milestone.find({ chat: chatId })
+  .sort({ createdAt: 1 })
+  .populate({
+    path: 'proposal',
+    populate: { path: 'seller', model: 'User' }
+  });
+
 
     if (!milestones) {
       return res.status(200).json([]);
