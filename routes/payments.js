@@ -120,43 +120,27 @@ router.post('/milestones/:id/create-order', authMiddleware, verifiedOnly, async 
 
 
 
-    const orderRes = await axios.post(`${paypalUrl}/v2/checkout/orders`, {
+  const orderRes = await axios.post(`${paypalUrl}/v2/checkout/orders`, {
+  intent: "CAPTURE",
+  purchase_units: [{
+    amount: {
+      currency_code: "USD",
+      value: milestone.price.toFixed(2)
+    }
+  }],
+  application_context: {
+    brand_name: "K4H",
+    user_action: "PAY_NOW",
+    return_url: `https://chat-k4h.vercel.app/result?payment=success&chatId=${milestone.chat}`,
+    cancel_url: `https://chat-k4h.vercel.app/chat/${milestone.chat}?payment=cancelled`
+  }
+}, {
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json"
+  }
+});
 
-      intent: "CAPTURE",
-
-      purchase_units: [{
-
-        amount: {
-
-          currency_code: "USD",
-
-          value: milestone.price.toFixed(2)
-
-        }
-
-      }],
-
-      application_context: {
-
-        brand_name: "K4H",
-
-        user_action: "PAY_NOW",
-
-        return_url: `https://chat-k4h.vercel.app/result?payment=success&milestoneId=${milestone.chat}`,
-
-        cancel_url: `https://chat-k4h.vercel.app/chat/${milestone.chat}?payment=cancelled`
-
-      }
-
-    }, {
-
-      headers: {
-
-        Authorization: `Bearer ${accessToken}`,
-
-        "Content-Type": "application/json"
-
-      }
 
     });
 
