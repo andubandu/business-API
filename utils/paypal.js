@@ -4,6 +4,10 @@ const axios = require('axios');
 const PAYPAL_API = process.env.PAYPAL_BASE_URL;
 
 async function getPayPalAccessToken() {
+  const PAYPAL_API = process.env.PAYPAL_MODE_LIVE === 'live'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
   const auth = Buffer.from(
     `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
   ).toString('base64');
@@ -18,14 +22,12 @@ async function getPayPalAccessToken() {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       }
-    );
-    return response.data;
+    );   return response.data;
   } catch (error) {
-    console.error('Error getting PayPal Token:', error.response?.data || error.message);
+    console.error('PayPal Auth Error Detail:', error.response?.data || error.message);
     throw new Error('Could not generate PayPal Access Token');
   }
 }
-
 async function capturePayment(orderId) {
   const accessToken = await getPayPalAccessToken();
 
@@ -89,10 +91,6 @@ async function processPayoutToSeller(sellerEmail, amount, currency = 'USD', note
   }
 }
 
-/**
- * Initiates a Refund to the original buyer capture.
- * @param {string} captureId - The PayPal Capture ID stored during the /pay route.
- */
 async function processRefundToBuyer(captureId, amount, currency = 'USD', note) {
   const accessToken = await getPayPalAccessToken();
   const roundedAmount = (Math.round(amount * 100) / 100).toFixed(2);
@@ -121,9 +119,19 @@ async function processRefundToBuyer(captureId, amount, currency = 'USD', note) {
   }
 }
 
+const getPayPalConfig = () => {
+    const isLive = process.env.PAYPAL_MODE_LIVE === 'live';
+    return {
+        baseUrl: isLive ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com',
+        clientId: process.env.PAYPAL_CLIENT_ID,
+        clientSecret: process.env.PAYPAL_CLIENT_SECRET
+    };
+};
+
 module.exports = {
   capturePayment,
   processPayoutToSeller,
   processRefundToBuyer,
-  getPayPalAccessToken
+  getPayPalAccessToken,
+  getPayPalConfig
 };

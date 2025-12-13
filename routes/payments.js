@@ -6,18 +6,30 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const Chat = require('../models/Chat');
 const axios = require('axios');
-const { getPayPalAccessToken } = require('../utils/paypal');
+const { getPayPalAccessToken, getPayPalConfig } = require('../utils/paypal');
 const router = express.Router();
 
-/**
- * Route: POST /payments/milestones/:id/pay
- * Action: Captures PayPal order, creates Transaction record, updates Milestone
- */
 router.post('/milestones/:id/pay', authMiddleware, verifiedOnly, async (req, res) => {
     const { id } = req.params;
     const { paypalOrderId } = req.body;
 
+    if (!paypalOrderId) {
+        return res.status(400).json({ error: "Missing PayPal Order ID in request body." });
+    }
+
     try {
+        const config = getPayPalConfig();
+
+        const auth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
+
+        const tokenRes = await axios.post(`${config.baseUrl}/v1/oauth2/token`, 'grant_type=client_credentials', {
+            headers: {
+                Authorization: `Basic ${auth}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+        const accessToken = tokenRes.data.access_token;
+
         const milestone = await Milestone.findById(id).populate({
             path: 'proposal',
             populate: { path: 'seller', model: 'User' }
@@ -25,17 +37,17 @@ router.post('/milestones/:id/pay', authMiddleware, verifiedOnly, async (req, res
 
         if (!milestone) return res.status(404).json({ error: "Milestone not found" });
 
-        const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
-        const tokenRes = await axios.post(`${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`, 'grant_type=client_credentials', {
-            headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        const accessToken = tokenRes.data.access_token;
-
         const captureRes = await axios.post(
-            `${process.env.PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`,
+            `${config.baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, // Use dynamic URL
             {},
-            { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
         );
+
 
         if (captureRes.data.status === 'COMPLETED') {
             const captureDetails = captureRes.data.purchase_units[0].payments.captures[0];
@@ -60,12 +72,21 @@ router.post('/milestones/:id/pay', authMiddleware, verifiedOnly, async (req, res
             await milestone.save();
 
             return res.json({ success: true, milestone });
+
         } else {
-            return res.status(400).json({ error: "Payment not completed", details: captureRes.data });
+            console.warn(`PayPal Capture Status is not COMPLETED for Order ${paypalOrderId}: ${captureRes.data.status}`);
+            return res.status(400).json({
+                error: "Payment not completed or failed execution.",
+                details: captureRes.data
+            });
         }
     } catch (error) {
-        console.error("Capture Error:", error.response?.data || error.message);
-        res.status(500).json({ error: "Capture failed", details: error.response?.data });
+        console.error("PayPal Capture Error:", error.response?.data || error.message);
+
+        res.status(500).json({
+            error: "Payment capture failed on the server.",
+            details: error.response?.data
+        });
     }
 });
 
