@@ -142,7 +142,7 @@ router.post('/milestones/:id/create-order', authMiddleware, verifiedOnly, async 
 
         user_action: "PAY_NOW",
 
-        return_url: `https://chat-k4h.vercel.app/result?payment=success&milestoneId=${milestone._id}`,
+        return_url: `https://chat-k4h.vercel.app/result?payment=success&milestoneId=${milestone.chat}`,
 
         cancel_url: `https://chat-k4h.vercel.app/chat/${milestone.chat}?payment=cancelled`
 
