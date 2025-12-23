@@ -284,8 +284,17 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.get('/github', (req, res, next) => {
   const userType = 'developer';
   req.session.oauthUserType = userType;
-  passport.authenticate('github', { scope: ['user:email'], session: false })(req, res, next);
+
+  if (req.query.redirect) {
+    req.session.oauthRedirect = req.query.redirect;
+  }
+
+  passport.authenticate('github', {
+    scope: ['user:email'],
+    session: false,
+  })(req, res, next);
 });
+
 
 /**
  * @swagger
@@ -309,13 +318,22 @@ router.get('/github/callback', (req, res, next) => {
       await sendVerificationEmail(user._id);
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
 
-    return res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+    const redirectUrl =
+      req.session.oauthRedirect ||
+      `${process.env.CLIENT_URL}/login`;
+
+    delete req.session.oauthRedirect;
+
+    return res.redirect(`${redirectUrl}?token=${token}`);
   })(req, res, next);
 });
+
 
 /**
  * @swagger
@@ -337,7 +355,15 @@ router.get('/github/callback', (req, res, next) => {
 router.get('/google', (req, res, next) => {
   const userType = req.query?.t === 'developer' ? 'developer' : 'user';
   req.session.oauthUserType = userType;
-  passport.authenticate('google', { scope: ['profile', 'email'], session: false })(req, res, next);
+
+  if (req.query.redirect) {
+    req.session.oauthRedirect = req.query.redirect;
+  }
+
+  passport.authenticate(
+    'google',
+    { scope: ['profile', 'email'], session: false }
+  )(req, res, next);
 });
 
 /**
@@ -361,13 +387,22 @@ router.get('/google/callback', (req, res, next) => {
       await sendVerificationEmail(user._id);
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
 
-    return res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
+    const redirectUrl =
+      req.session.oauthRedirect ||
+      `${process.env.CLIENT_URL}/login`;
+
+    delete req.session.oauthRedirect;
+
+    return res.redirect(`${redirectUrl}?token=${token}`);
   })(req, res, next);
 });
+
 
 /**
  * @swagger
