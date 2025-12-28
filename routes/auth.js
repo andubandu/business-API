@@ -312,28 +312,35 @@ router.get('/github/callback', (req, res, next) => {
     if (err) return res.status(500).json({ msg: err.message });
     if (!user) return res.status(400).json(JSON.parse(info.message));
 
-    if (user.isNew || user.verification_status !== 'approved') {
-      user.verification_status = 'pending';
-      await user.save();
-      await sendVerificationEmail(user._id);
+    try {
+      if (user.isNew || user.verification_status !== 'approved') {
+        user.verification_status = 'pending';
+        await user.save();
+        await sendVerificationEmail(user._id);
+      }
+
+      if (!user.profile_image && user.github_profile?.avatar_url) {
+        user.profile_image = user.github_profile.avatar_url;
+        await user.save();
+      }
+
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE }
+      );
+
+      const redirectUrl =
+        req.session.oauthRedirect || `${process.env.CLIENT_URL}/login`;
+      delete req.session.oauthRedirect;
+
+      return res.redirect(`${redirectUrl}?token=${token}`);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: 'Server error' });
     }
-
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
-    );
-
-    const redirectUrl =
-      req.session.oauthRedirect ||
-      `${process.env.CLIENT_URL}/login`;
-
-    delete req.session.oauthRedirect;
-
-    return res.redirect(`${redirectUrl}?token=${token}`);
   })(req, res, next);
 });
-
 
 /**
  * @swagger
@@ -381,28 +388,35 @@ router.get('/google/callback', (req, res, next) => {
     if (err) return res.status(500).json({ msg: err.message });
     if (!user) return res.status(400).json(JSON.parse(info.message));
 
-    if (user.isNew || user.verification_status !== 'approved') {
-      user.verification_status = 'pending';
-      await user.save();
-      await sendVerificationEmail(user._id);
+    try {
+      if (user.isNew || user.verification_status !== 'approved') {
+        user.verification_status = 'pending';
+        await user.save();
+        await sendVerificationEmail(user._id);
+      }
+
+      if (!user.profile_image && user.google_profile?.picture) {
+        user.profile_image = user.google_profile.picture;
+        await user.save();
+      }
+
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE }
+      );
+
+      const redirectUrl =
+        req.session.oauthRedirect || `${process.env.CLIENT_URL}/login`;
+      delete req.session.oauthRedirect;
+
+      return res.redirect(`${redirectUrl}?token=${token}`);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: 'Server error' });
     }
-
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
-    );
-
-    const redirectUrl =
-      req.session.oauthRedirect ||
-      `${process.env.CLIENT_URL}/login`;
-
-    delete req.session.oauthRedirect;
-
-    return res.redirect(`${redirectUrl}?token=${token}`);
   })(req, res, next);
 });
-
 
 /**
  * @swagger
